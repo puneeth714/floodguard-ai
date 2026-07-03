@@ -23,6 +23,7 @@ This document outlines the modular tasks, timelines, and verification steps requ
     - `/backend` (FastAPI + Python ADK Code)
     - `/frontend-resident` (Resident Chat React SPA)
     - `/frontend-official` (Official Dashboard React SPA)
+  - [ ] Verify `AGENTS.md` is initialized at the root containing all custom requirements (ADK 2.0 graph routing, BigQuery RAG setup, waypoint injection, FVI scoring, resident/official APIs).
 - [ ] **1.2 Database Schema Creation**
   - [ ] Initialize BigQuery dataset `floodguard_db` (or sandbox alternative).
   - [ ] Create table schemas:

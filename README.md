@@ -31,6 +31,7 @@ FloodGuard AI is a predictive, AI-powered Decision Intelligence Platform designe
 ## 📂 Folder Structure
 
 ```
+├── AGENTS.md                          # AI Agent guidelines & custom specs
 ├── backend/                           # FastAPI Backend
 │   ├── app/
 │   │   ├── agents/                    # ADK 2.0 Graph & Prompts
