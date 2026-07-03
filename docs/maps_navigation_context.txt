@@ -1,0 +1,253 @@
+Skip to main contentAccessibility help
+AI Mode
+All
+Images
+Videos
+Forums
+More
+Pro
+
+
+
+
+can i create custom maps navigation link in google maps ?
+Yes, you can create custom navigation links for Google Maps, but the method depends entirely on whether you want a clickable link that automatically launches turn-by-turn navigation or a visual custom map for sharing. 
+
+Google for Developers
+ +3
+If you want a link that forces Google Maps to immediately open and start navigating to a specific destination, you must use Google Maps URLs. If you are trying to share a custom itinerary with custom lines or shapes, you will use Google My Maps. 
+
+YouTube
+·Technology for Teachers and Students
+ +2
+Here is exactly how to create both types of links.
+Option 1: Create a Direct Turn-by-Turn Navigation Link
+Google provides a free, universal URL syntax that forces the Google Maps app (or browser) to open directly into live navigation mode. You do not need an API key to build this. 
+
+Google for Developers
+The Base Structure: Use the official Google Maps Dev URL template format: https://google.com. 
+
+Google for Developers
+Using an Address: Replace YOUR_DESTINATION with the address. Replace spaces with plus signs (+) or %20.
+Example: https://google.com 
+
+Google for Developers
+ +1
+Using Coordinates: You can also use exact latitude and longitude.
+Example: https://google.com 
+
+Google for Developers
+Adding Waypoints: If you want to include specific stops along the way, append &waypoints= separated by a pipe character (%7C).
+Example: https://google.com 
+
+Google for Developers
+Option 2: Share a Custom Route or Map via "My Maps"
+If you want to display a custom route drawn by hand, stylized markers, or specific areas on a map, use the Google My Maps platform. 
+
+YouTube
+·Technology for Teachers and Students
+ +1
+Go to the Google My Maps Portal on a computer.
+Click Create a new map.
+Use the toolbar to click Add directions or Draw a line to manually map out your exact path.
+Click the Share button in the left panel.
+Change the permissions toggle to Public or Anyone with this link can view.
+Copy the provided link to share it. 
+
+YouTube
+·Michelle The Creator
+ +6
+⚠️ Important Mobile Navigation Limitation: While users can click your My Maps link to view your custom-drawn lines on their phones, the actual native Google Maps turn-by-turn voice guidance cannot follow custom-drawn lines. When a user hits "Start Navigation," Google Maps will recalculate its own fastest route between the waypoints. 
+
+Google Help
+ +4
+If you'd like, let me know:
+What the link is going to be used for (e.g., a website button, texting a friend, a delivery route)
+If you need to force a specific mode of travel like walking, biking, or driving
+I can format the exact URL string you need!
+
+
+
+
+
+17 sites
+CREATE Your Own Custom Map with Google My Maps TODAY!
+in this video. I will teach you how to make your own custom maps. using Google My Maps let's get started. so here I am in Google M...
+Related video thumbnail
+9m
+
+YouTube
+·
+Technology for Teachers and Students
+How to use maps created in Google My Maps that can be navigated using Google Maps?
+You can't use routes in Google My Maps for guided navigation. However, you can navigate multiple points within a saved map to a fi...
+
+
+Google Help
+Get Started | Maps URLs - Google for Developers
+Introduction. Using Maps URLs, you can build a universal, cross-platform URL to launch Google Maps and perform searches, get direc...
+
+
+Google for Developers
+Show all
+Start Navigation should use my route how to do ?
+To force the Start Navigation button to follow your exact preferred path, you must use Waypoints (invisible intermediate stops). 
+
+Reddit
+Because Google Maps' live GPS engine insists on recalculating the absolute fastest route based on live traffic, it completely ignores custom-drawn lines or shapes when you hit Start. 
+
+Google Help
+ +2
+You can make it follow your exact path using the two methods below.
+Method 1: The Waypoint Hack (Best for Mobile & Apps)
+Instead of drawing lines, you force Google's GPS to navigate through hidden checkpoints along your custom route. 
+
+Reddit
+Open the standard Google Maps app.
+Enter your starting point and final destination.
+Tap the three-dot menu in the top right corner and select Add stop.
+Tap Choose on map and place a pin directly on the specific road or highway you want to force the GPS to use.
+Drag and reorder the stops so your hidden "checkpoint" is between the start and the end.
+Tap Start. The navigation engine is now forced to drive down your chosen road to clear that waypoint. 
+
+Google Help
+ +5
+Method 2: The Drag-and-Drop Link (Best for Sharing / Desktop)
+If you are planning this on a computer to use later or send to someone else, build the route visually. 
+
+Octopus SaaS
+Go to the standard Google Maps Desktop Site.
+Plan your route from A to B.
+Hover your mouse over the blue route line, click and drag the line to the exact roads you want to take.
+Once the route looks perfect, click the Menu (three lines) in the top left -> Share or embed map -> Copy link.
+Send that link to your phone. When you open it, Google Maps will preserve those exact dragged anchor points. Click Start Navigation, and it will follow that specific path. 
+
+Google Help
+ +3
+💡 Critical Navigation Tips
+Don't use "My Maps" lines: If you drew a route using the line tool in Google My Maps, the mobile app treats it like a drawing, not a road. Use standard multi-stop directions instead. 
+
+YouTube
+·Outdoor Tech Instructor
+ +2
+Avoidance Settings: If your route is custom because you hate highways or toll roads, tap the three dots in Google Maps, go to Route Options, and toggle Avoid tolls or Avoid highways. This fixes the route automatically without needing custom pins. 
+
+Octopus SaaS
+If you want, you can share the starting address, ending address, and the specific road you want to force the GPS to take. I can generate a precise, clickable multi-stop navigation link for you right now!
+
+
+
+
+
+12 sites
+Google My Maps: Create Custom Routes | Edit & Export Tutorial
+5 Jul 2022 — You can create routes in Google My Maps. You've already learned about Google My Maps and I've shown you how to set markers on your...
+Related video thumbnail
+8:01
+
+
+YouTube
+·
+Outdoor Tech Instructor
+How to use maps created in Google My Maps that can be navigated using Google Maps?
+10 Sept 2019 — You can't use routes in Google My Maps for guided navigation. However, you can navigate multiple points within a saved map to a fi...
+
+
+Google Help
+Google Maps: How do I start a route that I've saved to My Maps?
+15 Mar 2016 — 2 Answers. Sorted by: 3. After much testing I found the following to work: Using linking or copying, get the PC created route to a...
+
+
+Web Applications Stack Exchange
+Show all
+how to do this programatically  ?
+To launch Google Maps programmatically with your exact custom route, you must pass waypoints through a standardized URL Scheme or API Link.
+The Google Maps app recalculates directions dynamically when it opens. Therefore, you cannot pass a visual shape; you must pass explicit coordinate checkpoints that force the engine to use your roads.
+The Standard Universal Link Structure
+Use the official Google Maps Directions API URL format. This works universally across iOS, Android, web browsers, and backend code without needing specific SDK libraries. 
+text
+https://google.com|POINT2|POINT3&travelmode=driving
+Use code with caution.
+Key URL Parameters
+origin: The starting address, city, or latitude,longitude coordinates.
+destination: The final destination address or latitude,longitude coordinates.
+waypoints: The secret to your custom path. A list of addresses or coordinates separated by a pipe character (|).
+travelmode: Sets the mode. Use driving, walking, bicycling, or transit.
+Implementation Examples
+1. Python (Backend / Scripting)
+Always use urllib.parse.quote() to safely encode your coordinates and pipe symbols for a URL.
+python
+import urllib.parse
+
+# Define your route coordinates (lat,lng)
+origin = "40.7128,-74.0060"        # New York
+destination = "40.7589,-73.9851"   # Times Square
+waypoints = [
+    "40.7306,-73.9352",            # Custom detour point 1
+    "40.7484,-73.9857"             # Custom detour point 2
+]
+
+# Join waypoints with a pipe character
+waypoint_string = "|".join(waypoints)
+
+# Encode parameters for the URL
+params = {
+    "api": "1",
+    "origin": origin,
+    "destination": destination,
+    "waypoints": waypoint_string,
+    "travelmode": "driving"
+}
+
+# Construct the final clickable navigation link
+nav_url = f"https://google.com?{urllib.parse.urlencode(params)}"
+print(nav_url)
+Use code with caution.
+2. JavaScript / Web Apps
+In a browser context, use encodeURIComponent() to build the string dynamically.
+javascript
+const origin = "40.7128,-74.0060";
+const destination = "40.7589,-73.9851";
+const waypoints = ["40.7306,-73.9352", "40.7484,-73.9857"].join('|');
+
+const mapUrl = `https://google.com{encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+
+// Open directly in the user's Google Maps app or browser
+window.open(mapUrl, '_blank');
+Use code with caution.
+3. Native Mobile Deep Linking (iOS & Android)
+If you want to bypass the web browser entirely and force the native mobile app to launch instantly, use the google.navigation: intent scheme.
+Android Intent:
+text
+google.navigation:q=latitude,longitude
+Use code with caution.
+(Note: The native Android navigation intent only supports a single destination query. For custom routes with multiple waypoints on mobile, the web link syntax https://google.com... is highly recommended because mobile OS platforms automatically intercept it and open it inside the native application seamlessly).
+⚠️ Two Rules for Developers
+Max 3 Waypoints Without an API Key: If you launch this free link format, Google Maps allows up to 3 intermediate waypoints. If your custom route needs more precision, you must use the paid Google Maps Directions API fetch service to calculate polylines.
+Prefer Coordinates over Addresses: Text addresses force Google to perform geocoding on-the-fly, which can slightly alter your intended route. Using exact lat,lng strings guarantees the waypoint drops exactly on the specific lane or highway you planned.
+If you want, tell me what programming language or framework you are building your app in (e.g., React Native, Flutter, Swift, C#). I can provide the exact code snippets or native package names to implement it! 
+
+
+
+
+
+5 sites
+Developing Web apps using QML and Qt for WebAssembly
+10 Nov 2019 — This format is nearly as fast as native machine code, and is now supported by all major web browsers.
+
+
+itnext.io
+Get started with .NET Framework - .NET Framework
+21 Sept 2022 — NET Framework version that you intend to use to develop your apps. A number of languages are available, including Visual Basic, C#
+
+Microsoft Learn
+App Development Process (2025)
+27 Aug 2025 — Native: Often used for a single platform with programming languages and tools specific to that platform. Examples include developi...
+
+
+Business of Apps
+Show all
+Ask anything
+
+
+AI Mode response is ready
