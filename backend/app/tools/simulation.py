@@ -8,7 +8,8 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path
 
 def run_what_if_simulation(
     intervention_type: str, 
-    details: Dict[str, Any]
+    details: Dict[str, Any],
+    use_mock: bool = False
 ) -> Dict[str, Any]:
     """
     Simulates municipal flood mitigation interventions (e.g., desilting stormwater drains 
@@ -19,11 +20,28 @@ def run_what_if_simulation(
         details: Dict containing parameters:
                  - For 'desilt_drain': 'drain_id' (str)
                  - For 'deploy_pump': 'lat' (float), 'lng' (float), 'capacity_gpm' (int)
+        use_mock: If True, bypasses database query and returns simulated mock outputs.
                  
     Returns:
         Dict containing baseline vs simulated FVI scores, reduction percentage, 
         estimated residents protected, and an engineering explanation.
     """
+    if use_mock:
+        return {
+            "status": "success",
+            "intervention": intervention_type,
+            "affected_grid_points": 8,
+            "baseline_avg_fvi": 65.4,
+            "simulated_avg_fvi": 42.1,
+            "fvi_reduction_percent": 35.6,
+            "estimated_residents_protected": 1600,
+            "explanation": (
+                f"Simulated Analysis: Deploying mock mitigation for {intervention_type} "
+                f"reduces regional FVI by 35.6% and secures approximately 1,600 residents."
+            ),
+            "confidence_score": 90
+        }
+
     bq_wrapper = BigQueryClientWrapper()
     dataset = bq_wrapper.dataset_ref
     

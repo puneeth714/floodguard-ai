@@ -36,6 +36,9 @@ This document outlines the modular tasks, timelines, and verification steps requ
     - Define and pre-seed active flood polygons (Silk Board and Bellandur coordinates).
     - Cache altitude values for 100+ key grid coordinates in Bengaluru.
   - [x] **Verification**: Run raw SQL queries to confirm datasets are active and retrievable.
+- [ ] **1.4 Google Cloud Storage Integration**
+  - [ ] Set up GCS Bucket `floodguard-assets-501409` (or local fallback directory).
+  - [ ] Implement `backend/app/db/gcs_client.py` to upload/download binary image files (user uploads & Places photos).
 
 ---
 
@@ -92,9 +95,11 @@ This document outlines the modular tasks, timelines, and verification steps requ
 - [ ] **5.1 Resident Chat Application**
   - [ ] Initialize React Vite SPA, design dark UI style guidelines.
   - [ ] Implement Resident Profile Switcher (Rajesh/Radha/Anonymous coordinates).
+  - [ ] Implement "Mock Simulation" toggle header switch to force heavy rain and detour mock checks.
   - [ ] Connect chat panel to `/api/resident/chat` and SOS button to `/api/resident/upload-sos`.
 - [ ] **5.2 Official command center Dashboard**
   - [ ] Initialize React Vite SPA, build desktop split-screen interface.
+  - [ ] Implement "Mock Simulation" toggle header switch to bypass active cloud calls.
   - [ ] Map panel: Integrate `@vis.gl/react-google-maps`, add heatmap layer (FVI), dynamic markers (active alert pins with photo models), and pre-seeded flood polygons.
   - [ ] Chat panel: Add sidebar console connected to `/api/official/chat` for What-If queries.
   - [ ] Real-time integration: Connect maps state to SSE feed to animate incoming alerts.

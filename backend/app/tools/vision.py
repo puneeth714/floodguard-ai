@@ -8,19 +8,32 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"))
 
-def analyze_flood_image(image_bytes: bytes) -> Dict[str, Any]:
+def analyze_flood_image(image_bytes: bytes, use_mock: bool = False) -> Dict[str, Any]:
     """
     Sends photo bytes to Gemini 3.5 Flash Vision to estimate water depth,
     identify hazard reference points, and classify flood severity.
     
     Args:
         image_bytes: Raw binary bytes of the uploaded image.
+        use_mock: If True, bypasses API and returns mock analysis.
         
     Returns:
         Dict containing is_flooded (bool), estimated_depth_ft (float), 
         severity (str), and explanation (str).
     """
-    # 1. Initialize Google GenAI client
+    # 1. Handle mock override
+    if use_mock:
+        return {
+            "is_flooded": True,
+            "estimated_depth_ft": 1.8,
+            "severity": "Severe",
+            "explanation": (
+                "Simulated Analysis: Standing water detected submerging the wheels of the vehicles "
+                "parked in the driveway, indicating a severe hazard level of approximately 1.8 feet."
+            )
+        }
+
+    # 2. Initialize Google GenAI client
     # If key is available in environment, Client() loads it. 
     # Otherwise, it falls back to the active Google Cloud authenticated account.
     try:
