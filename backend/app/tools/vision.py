@@ -38,12 +38,13 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Final
+from typing import Final, Optional
 
 from google import genai
 from google.genai import types as genai_types
 from PIL import Image, UnidentifiedImageError
 from pydantic import ValidationError
+from google.adk.tools.tool_context import ToolContext
 
 from .vision_models import VisionResult
 from .vision_prompt import VISION_SYSTEM_PROMPT
@@ -52,6 +53,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Loads GEMINI_API_KEY (and other vars) from .env into os.environ
 
 from pathlib import Path
+
 
 # --------------------------------------------------------------------------- #
 # Logging configuration
@@ -448,7 +450,7 @@ class VisionTool:
     # Public API
     # ------------------------------------------------------------------- #
 
-    def analyze_flood_image(self, image_path: str) -> VisionResult:
+    def analyze_flood_image(self, image_path: str, tool_context: Optional[ToolContext] = None) -> VisionResult:
         """
         Analyze a flood image end-to-end and return a validated
         `VisionResult`.
@@ -462,6 +464,7 @@ class VisionTool:
 
         Args:
             image_path: Path (as a string) to the flood image file.
+            tool_context: Optional ADK ToolContext to store result in session state.
 
         Returns:
             VisionResult: A validated flood assessment result.
@@ -483,8 +486,30 @@ class VisionTool:
         parsed_json = self._extract_json(raw_response)
         result = self._validate_result(parsed_json)
 
+        if tool_context is not None:
+            tool_context.state["vision_result"] = result.model_dump()
+            tool_context.state["detected_depth"] = result.water_depth_cm
+            tool_context.state["flood_severity"] = result.severity.value
+
         logger.info("Flood image analysis completed successfully: %s", path.name)
         return result
+
+    def analyze_flood_image_bytes(self, image_bytes: bytes, mime_type: str, tool_context: Optional[ToolContext] = None) -> VisionResult:
+        """
+        Analyze raw flood image bytes directly using Gemini Vision and return a validated VisionResult.
+        """
+        raw_response = self._analyze_with_gemini(image_bytes, mime_type)
+        parsed_json = self._extract_json(raw_response)
+        result = self._validate_result(parsed_json)
+
+        if tool_context is not None:
+            tool_context.state["vision_result"] = result.model_dump()
+            tool_context.state["detected_depth"] = result.water_depth_cm
+            tool_context.state["flood_severity"] = result.severity.value
+
+        logger.info("Flood image bytes analysis completed successfully.")
+        return result
+
 
 
 # --------------------------------------------------------------------------- #

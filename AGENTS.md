@@ -132,3 +132,10 @@ AI agents working in this repository MUST document new engineering learnings, pa
 4. **KML Coordinate Parsing Boundaries** (July 4, 2026):
    - *Problem*: Raw municipal coordinates in KML files can contain literal `"nan"` strings, which parse as float `NaN` in Python and cause BigQuery insertion payloads to fail validation.
    - *Remedy*: Explicitly check coordinates with `math.isnan(lat) or math.isnan(lng)` and discard invalid pairs before compiling BQ inserts.
+5. **ADK 2.0 Dynamic Prompt Template Injection Restrictions** (July 4, 2026):
+   - *Problem*: Referencing dynamic state variables (e.g. `{user_role}`, `{latitude}`) inside agent instructions throws `KeyError: 'Context variable not found'` when starting clean sessions with empty states in `adk web`.
+   - *Remedy*: Avoid curly brace placeholders in agent system instructions. Instead, write a simple helper tool `get_session_context` that reads `tool_context.state` safely and register it across all agents.
+6. **Dynamic Test Mode Profile Injection in clean ADK Web Sessions** (July 4, 2026):
+   - *Problem*: Running `adk web` runs the raw agents directly and bypasses API wrappers, leaving coordinates as `None` and causing tool input validation errors.
+   - *Remedy*: Within the `get_session_context` tool, check if coordinates are `None` under `test` mode, and auto-load the default mock profile variables directly into the session state (`tool_context.state`).
+

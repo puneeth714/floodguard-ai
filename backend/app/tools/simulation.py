@@ -1,7 +1,8 @@
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from app.db.bigquery_client import BigQueryClientWrapper
+from google.adk.tools.tool_context import ToolContext
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"))
@@ -9,7 +10,8 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path
 def run_what_if_simulation(
     intervention_type: str, 
     details: Dict[str, Any],
-    use_mock: bool = False
+    use_mock: bool = False,
+    tool_context: Optional[ToolContext] = None
 ) -> Dict[str, Any]:
     """
     Simulates municipal flood mitigation interventions (e.g., desilting stormwater drains 
@@ -21,13 +23,19 @@ def run_what_if_simulation(
                  - For 'desilt_drain': 'drain_id' (str)
                  - For 'deploy_pump': 'lat' (float), 'lng' (float), 'capacity_gpm' (int)
         use_mock: If True, bypasses database query and returns simulated mock outputs.
+        tool_context: Optional ADK ToolContext to store result in session state.
                  
     Returns:
         Dict containing baseline vs simulated FVI scores, reduction percentage, 
         estimated residents protected, and an engineering explanation.
     """
+    def _save_and_return(res: Dict[str, Any]) -> Dict[str, Any]:
+        if tool_context is not None:
+            tool_context.state["simulation_result"] = res
+        return res
+
     if use_mock:
-        return {
+        return _save_and_return({
             "status": "success",
             "intervention": intervention_type,
             "affected_grid_points": 8,
@@ -40,7 +48,8 @@ def run_what_if_simulation(
                 f"reduces regional FVI by 35.6% and secures approximately 1,600 residents."
             ),
             "confidence_score": 90
-        }
+        })
+
 
     bq_wrapper = BigQueryClientWrapper()
     dataset = bq_wrapper.dataset_ref
@@ -142,7 +151,7 @@ def run_what_if_simulation(
                 f"Lowered risk levels for {affected_count} immediate residential properties."
             )
             
-        return {
+        return _save_and_return({
             "status": "success",
             "intervention": intervention_type,
             "affected_grid_points": affected_count,
@@ -152,12 +161,12 @@ def run_what_if_simulation(
             "estimated_residents_protected": protected_residents,
             "explanation": explanation,
             "confidence_score": 88 if affected_count > 0 else 50
-        }
+        })
         
     except Exception as e:
         print(f"Hydrological simulation error (falling back to mock): {e}")
         # Fallback Mock report
-        return {
+        return _save_and_return({
             "status": "fallback_mock",
             "intervention": intervention_type,
             "affected_grid_points": 8,
@@ -167,4 +176,5 @@ def run_what_if_simulation(
             "estimated_residents_protected": 1600,
             "explanation": "Fallback Simulation: Action reduces local water levels by approximately 35.6%.",
             "confidence_score": 85
-        }
+        })
+

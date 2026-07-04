@@ -2,9 +2,11 @@ import os
 import requests
 import urllib.parse
 import polyline
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from shapely.geometry import LineString, Polygon
 from dotenv import load_dotenv
+from app.core.config import settings
+
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"))
@@ -28,12 +30,14 @@ BELLANDUR_FLOOD_POLYGON = Polygon([
 
 # Safe detour waypoint in HSR Sector 2 (elevated dry zone: 12.9340, 77.6320)
 SAFE_DETOUR_WAYPOINT = "12.9340,77.6320"
+from google.adk.tools.tool_context import ToolContext
 
 def calculate_safe_route(
     origin: str, 
     destination: str, 
     travel_mode: str = "driving", 
-    use_mock: bool = False
+    use_mock: bool = False,
+    tool_context: Optional[ToolContext] = None
 ) -> Dict[str, Any]:
     """
     Computes route alternatives from origin to destination, decodes polylines, 
@@ -44,17 +48,29 @@ def calculate_safe_route(
         destination: End address or "lat,lng" string.
         travel_mode: Mode of travel ('driving', 'walking', etc.)
         use_mock: If True, returns mock detour response.
+        tool_context: Optional ADK ToolContext to store result in session state.
         
     Returns:
         Dict containing route safety report, polylines, and the universal navigation link.
     """
+    def _save_and_return(res: Dict[str, Any]) -> Dict[str, Any]:
+        if tool_context is not None:
+            tool_context.state["safe_route"] = res
+        return res
+
     api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     
+    # Check for session state profile overrides
+    state_use_mock = False
+    if tool_context is not None:
+        state_use_mock = tool_context.state.get("use_mock", False)
+
     # 1. Handle mock scenario or missing API key
-    if use_mock or not api_key:
+    if use_mock or settings.USE_MOCK_TELEMETRY or state_use_mock or not api_key:
         print("Using mock route generator (API Key missing or mock mode active).")
+
         # Simulate Rajesh HSR to Airport detour
-        return {
+        return _save_and_return({
             "source": "mock_route_generator",
             "routes": [
                 {
@@ -76,7 +92,8 @@ def calculate_safe_route(
                     )
                 }
             ]
-        }
+        })
+
 
     # 2. Call Google Maps Directions API to fetch route options
     try:
@@ -150,15 +167,15 @@ def calculate_safe_route(
                 "google_maps_link": detour_url
             })
             
-        return {
+        return _save_and_return({
             "source": "google_directions_api",
             "routes": routes_report
-        }
+        })
         
     except Exception as e:
         print(f"Routing calculation error (falling back to mock): {e}")
         # Fallback to mock URL
-        return {
+        return _save_and_return({
             "source": "fallback_mock_generator",
             "routes": [
                 {
@@ -173,4 +190,5 @@ def calculate_safe_route(
                     )
                 }
             ]
-        }
+        })
+

@@ -5,6 +5,7 @@ Thumbs.db
 # Project folders
 tmp/
 archive/
+logs/
 
 # Python Virtual Environments & Packages
 venv/
@@ -34,3 +35,8 @@ backend/*-key.json
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Google ADK generated directories
+.adk/
+**/.adk/
+.system_generated/

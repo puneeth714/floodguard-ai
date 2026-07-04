@@ -36,9 +36,9 @@ This document outlines the modular tasks, timelines, and verification steps requ
     - Define and pre-seed active flood polygons (Silk Board and Bellandur coordinates).
     - Cache altitude values for 100+ key grid coordinates in Bengaluru.
   - [x] **Verification**: Run raw SQL queries to confirm datasets are active and retrievable.
-- [ ] **1.4 Google Cloud Storage Integration**
-  - [ ] Set up GCS Bucket `floodguard-assets-501409` (or local fallback directory).
-  - [ ] Implement `backend/app/db/gcs_client.py` to upload/download binary image files (user uploads & Places photos).
+- [x] **1.4 Google Cloud Storage Integration**
+  - [x] Set up GCS Bucket `floodguard-assets-501409` (configured local directory storage fallback for sandbox).
+  - [x] Implement GCS file handler wrapper/fallback to upload/download binary image files (user uploads & Places photos).
 
 ---
 
@@ -53,8 +53,9 @@ This document outlines the modular tasks, timelines, and verification steps requ
 - [x] **2.2 Weather & Elevation Adapters**
   - [x] Write `get_weather_telemetry` to fetch hourly precipitation (with mock telemetry overrides).
   - [x] Write `get_elevation_profile` to resolve terrain altitudes using cache fallbacks.
-- [ ] **2.3 Gemini Vision Analyzer (Pending: Vennela)**
-  - [ ] **Teammate Task (Vennela)**: Write image processor to send user-uploaded photos to Gemini 3.5 Flash Vision to classify water depth and hazard severity.
+- [x] **2.3 Gemini Vision Analyzer**
+  - [x] Write image processor to send user-uploaded photos to Gemini 3.5 Flash Vision to classify water depth and hazard severity.
+
 - [x] **2.4 Hydrological Simulator**
   - [x] Write parametric calculation logic to predict FVI reduction when pumps/drains are modified.
   - [x] **Verification**: Run standalone Python test script `/backend/tests/test_tools.py` to verify routes avoid the mock Silk Board flood polygon and return correct waypoint deep-links.
@@ -63,17 +64,18 @@ This document outlines the modular tasks, timelines, and verification steps requ
 
 ### Step 3: ADK 2.0 Graph Flow & Agent Orchestration (Day 2)
 *Goal: Integrate the functional tools into specialized agents and build the non-linear ADK 2.0 state machine graph.*
-- [ ] **3.1 Graph State Definition**
-  - [ ] Define the shared `ConversationState` structure (thread history, coordinates, detected depth, FVI risk score, and current route links).
-- [ ] **3.2 Agent Node Bindings**
-  - [ ] Bind tools to the specialized agents:
+- [x] **3.1 Graph State Definition**
+  - [x] Define the shared `ConversationState` structure (thread history, coordinates, detected depth, FVI risk score, and current route links).
+- [x] **3.2 Agent Node Bindings**
+  - [x] Bind tools to the specialized agents:
     - `GeospatialAgent` $\rightarrow$ Elevation, Routing, Waypoint compilation.
     - `PolicyAgent` $\rightarrow$ Guideline PDF search, What-if SQL simulations.
     - `VisionAgent` (Pending: Vennela) $\rightarrow$ Gemini Vision image analysis.
-- [ ] **3.3 Graph Flow Implementation**
-  - [ ] Design the cyclic flow routing in `/backend/app/agents/graph.py`.
-  - [ ] Set up Orchestrator conditions to sequentially execute multiple agent nodes when inputs require multi-step reasoning.
-  - [ ] **Verification**: Run test script `/backend/tests/test_agents.py` via command line to verify chat output and agent transitions.
+- [x] **3.3 Graph Flow Implementation**
+  - [x] Design the cyclic flow routing in `/backend/app/agents/graph.py`.
+  - [x] Set up Orchestrator conditions to sequentially execute multiple agent nodes when inputs require multi-step reasoning.
+  - [x] **Verification**: Run test script `/backend/tests/test_agents.py` via command line to verify chat output and agent transitions.
+
 
 ---
 

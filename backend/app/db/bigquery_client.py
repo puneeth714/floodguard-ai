@@ -126,7 +126,7 @@ class BigQueryClientWrapper:
         """Queries guidelines_vector using BigQuery Vector Search."""
         embedding_str = ",".join(map(str, query_embedding))
         query = f"""
-        SELECT chunk_id, doc_name, page_num, content
+        SELECT base.chunk_id AS chunk_id, base.doc_name AS doc_name, base.page_num AS page_num, base.content AS content
         FROM VECTOR_SEARCH(
           TABLE `{self.dataset_ref}.guidelines_vector`,
           'embedding',
