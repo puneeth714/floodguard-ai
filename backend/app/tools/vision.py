@@ -117,7 +117,7 @@ class VisionTool:
     MAX_IMAGE_SIZE_BYTES: Final[int] = 10 * 1024 * 1024  # 10 MB
 
     # Default Gemini model used for multimodal flood image analysis.
-    DEFAULT_MODEL_NAME: Final[str] = "gemini-2.5-flash"
+    DEFAULT_MODEL_NAME: Final[str] = "gemini-3.5-flash"
 
     # Default request timeout (seconds) for the Gemini API call.
     DEFAULT_TIMEOUT_SECONDS: Final[int] = 60
@@ -150,24 +150,34 @@ class VisionTool:
 
     def _initialize_client(self) -> genai.Client:
         """
-        Initialize and return a Gemini API client configured for Google Cloud Vertex AI.
+        Initialize and return a Gemini API client using the API key
+        stored in the `GEMINI_API_KEY` environment variable.
 
         Returns:
-            genai.Client: An authenticated Vertex AI Gemini client instance.
+            genai.Client: An authenticated Gemini client instance.
 
         Raises:
-            GeminiAPIError: If the client fails to initialize.
+            GeminiAPIError: If `GEMINI_API_KEY` is not set, or if the
+                client fails to initialize for any reason.
         """
+        api_key = os.environ.get("GEMINI_API_KEY")
+
+        if not api_key:
+            logger.error("GEMINI_API_KEY environment variable is not set.")
+            raise GeminiAPIError(
+                "Missing GEMINI_API_KEY environment variable. "
+                "Set it before initializing VisionTool."
+            )
+
         try:
-            project_id = os.environ.get("PROJECT_ID", "floodguardai-501409")
-            client = genai.Client(vertexai=True, project=project_id, location="us-central1")
+            client = genai.Client(api_key=api_key)
         except Exception as exc:  # noqa: BLE001 - surface as domain-specific error
             logger.error("Failed to initialize Gemini client: %s", type(exc).__name__)
             raise GeminiAPIError(
                 "Failed to initialize the Gemini API client."
             ) from exc
 
-        logger.info("Gemini client initialized successfully via Vertex AI (model=%s).", self.model_name)
+        logger.info("Gemini client initialized successfully (model=%s).", self.model_name)
         return client
 
     # ------------------------------------------------------------------- #
@@ -474,47 +484,6 @@ class VisionTool:
         result = self._validate_result(parsed_json)
 
         logger.info("Flood image analysis completed successfully: %s", path.name)
-        return result
-
-    def analyze_flood_image_bytes(
-        self, 
-        image_bytes: bytes, 
-        mime_type: str = "image/jpeg"
-    ) -> VisionResult:
-        """
-        Analyze a flood image directly from memory bytes and return a validated
-        `VisionResult`.
-
-        Pipeline:
-            1. Validate the image size and bytes length.
-            2. Send the image to Gemini for multimodal analysis.
-            3. Extract JSON from Gemini's response.
-            4. Validate the JSON against the `VisionResult` schema.
-
-        Args:
-            image_bytes: Raw binary bytes of the image.
-            mime_type: MIME type of the image (default: "image/jpeg").
-
-        Returns:
-            VisionResult: A validated flood assessment result.
-
-        Raises:
-            ImageValidationError: If the image bytes fail size check.
-            GeminiAPIError: If the Gemini API call fails.
-            JSONExtractionError: If JSON cannot be extracted.
-            ResultValidationError: If the JSON fails Pydantic schema validation.
-        """
-        if len(image_bytes) > self.MAX_IMAGE_SIZE_BYTES:
-            raise ImageValidationError(
-                f"Image bytes size ({len(image_bytes)} bytes) exceeds the maximum allowed "
-                f"size of {self.MAX_IMAGE_SIZE_BYTES} bytes."
-            )
-
-        raw_response = self._analyze_with_gemini(image_bytes, mime_type)
-        parsed_json = self._extract_json(raw_response)
-        result = self._validate_result(parsed_json)
-
-        logger.info("Flood image analysis (bytes) completed successfully.")
         return result
 
 
