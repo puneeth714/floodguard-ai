@@ -113,3 +113,22 @@ python -m unittest discover tests/
 * **Never use Tailwind CSS** unless the user explicitly requests it.
 * Never leave placeholders (e.g., `# TODO`, `// implement later`) in code. Implement tasks fully.
 * Never write code files or temporary test scripts outside the workspace directory.
+
+---
+
+## Learnings & Process Registry
+AI agents working in this repository MUST document new engineering learnings, patterns, and discoveries here. Keep updating this registry sequentially as new features are built.
+
+### Learnings Log
+1. **GCP Configuration & Path Mismatches** (July 4, 2026):
+   - *Problem*: Scripts executing from different directories (e.g., project root vs. `backend/scripts/`) fail to resolve relative `.env` files or credentials files like `floodguard-sa-key.json`.
+   - *Remedy*: Set `GOOGLE_APPLICATION_CREDENTIALS` as an absolute path in the configuration, and copy the `.env` file to both the project root and `backend/` folders to guarantee identical variable loading from any working directory.
+2. **BigQuery Vector Index Limits** (July 4, 2026):
+   - *Problem*: Running `CREATE VECTOR INDEX` with IVF index type fails if the target table contains fewer than 5,000 rows.
+   - *Remedy*: Wrap vector index creation in a try-except block, allowing the system to fall back automatically to standard exact brute-force cosine distance search (which is extremely fast and robust for smaller datasets).
+3. **Vertex AI Google GenAI Client Initialization** (July 4, 2026):
+   - *Problem*: `genai.Client()` defaults to Google AI Studio and throws errors if `GEMINI_API_KEY` is not provided.
+   - *Remedy*: Initialize the client using explicit Vertex AI parameters: `client = genai.Client(vertexai=True, project="PROJECT_ID", location="us-central1")` to bind authentication directly to the active GCP Service Account.
+4. **KML Coordinate Parsing Boundaries** (July 4, 2026):
+   - *Problem*: Raw municipal coordinates in KML files can contain literal `"nan"` strings, which parse as float `NaN` in Python and cause BigQuery insertion payloads to fail validation.
+   - *Remedy*: Explicitly check coordinates with `math.isnan(lat) or math.isnan(lng)` and discard invalid pairs before compiling BQ inserts.
