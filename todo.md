@@ -41,20 +41,20 @@ This document outlines the modular tasks, timelines, and verification steps requ
 
 ### Step 2: Core Python Utility Tools & Spatial Calculations (Day 1 - 2)
 *Goal: Write and unit-test the low-level functions that perform mathematical, geospatial, and vision actions before putting them into AI agents.*
-- [ ] **2.1 Spatial Route Filtering**
-  - [ ] Write route avoidance logic:
+- [x] **2.1 Spatial Route Filtering**
+  - [x] Write route avoidance logic:
     - Receive source and destination coordinates.
     - Decode polyline paths returned by Google Maps Routes API into standard coordinate lists.
     - Use `shapely` to perform intersection checks between decoded paths and active flood polygons.
     - Filter out blocked routes and calculate detours using safe intermediate waypoint injection.
-- [ ] **2.2 Weather & Elevation Adapters**
-  - [ ] Write `get_weather_telemetry` to fetch hourly precipitation (with mock telemetry overrides).
-  - [ ] Write `get_elevation_profile` to resolve terrain altitudes using cache fallbacks.
-- [ ] **2.3 Gemini Vision Analyzer**
-  - [ ] Write image processor to send user-uploaded photos to Gemini 3.5 Flash Vision to classify water depth and hazard severity.
-- [ ] **2.4 Hydrological Simulator**
-  - [ ] Write parametric calculation logic to predict FVI reduction when pumps/drains are modified.
-  - [ ] **Verification**: Run standalone Python test script `/backend/tests/test_tools.py` to verify routes avoid the mock Silk Board flood polygon and return correct waypoint deep-links.
+- [x] **2.2 Weather & Elevation Adapters**
+  - [x] Write `get_weather_telemetry` to fetch hourly precipitation (with mock telemetry overrides).
+  - [x] Write `get_elevation_profile` to resolve terrain altitudes using cache fallbacks.
+- [x] **2.3 Gemini Vision Analyzer**
+  - [x] Write image processor to send user-uploaded photos to Gemini 3.5 Flash Vision to classify water depth and hazard severity.
+- [x] **2.4 Hydrological Simulator**
+  - [x] Write parametric calculation logic to predict FVI reduction when pumps/drains are modified.
+  - [x] **Verification**: Run standalone Python test script `/backend/tests/test_tools.py` to verify routes avoid the mock Silk Board flood polygon and return correct waypoint deep-links.
 
 ---
 
