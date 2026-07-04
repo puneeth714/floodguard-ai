@@ -12,6 +12,7 @@ from app.tools.elevation import get_elevation_profile
 from app.tools.routing import calculate_safe_route
 from app.tools.simulation import run_what_if_simulation
 from app.tools.places import geocode_place, get_place_photo_references, download_place_photo
+from app.tools.vision import VisionTool
 from google import genai
 
 class TestRealIntegration(unittest.TestCase):
@@ -193,6 +194,40 @@ class TestRealIntegration(unittest.TestCase):
             print(f"  Successfully downloaded {len(img_bytes)} bytes of the building photo.")
         else:
             print("  No photos available for this place.")
+
+    def test_8_real_vision_analysis(self):
+        """Test real Gemini Vision analysis on image bytes."""
+        print("\n--- Test 8: Real Gemini Multimodal Vision API ---")
+        
+        # Valid 1x1 pixel JPEG byte stream
+        dummy_jpeg_bytes = (
+            b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`H\x00`H\x00\x00'
+            b'\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08'
+            b'\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e'
+            b'\x1d\x1a\x1c\x1c $.\' \",#\x1c\x1c(7),01444\x1f\'9=82<.342'
+            b'\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00'
+            b'\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00'
+            b'\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00'
+            b'\x08\x01\x01\x00\x00?\x00\xbf\x00\xff\xd9'
+        )
+        
+        try:
+            vision_tool = VisionTool()
+            print("Sending 1x1 dummy JPEG image to Gemini Vision...")
+            result = vision_tool.analyze_flood_image_bytes(dummy_jpeg_bytes, mime_type="image/jpeg")
+            
+            self.assertIsNotNone(result)
+            self.assertIn(result.severity.value, ["LOW", "MODERATE", "HIGH", "CRITICAL"])
+            print("Gemini Vision returned a validated Pydantic model successfully:")
+            print(f"  Water Depth: {result.water_depth_cm} cm")
+            print(f"  Severity: {result.severity.value}")
+            print(f"  Rescue Priority: {result.rescue_priority.value}")
+            print(f"  Confidence: {result.confidence}")
+            print(f"  Summary: {result.summary}")
+        except Exception as e:
+            print(f"Vision API error: {e}")
+            # Allow fallback if quota or permission issue
+            raise e
 
 if __name__ == "__main__":
     unittest.main()

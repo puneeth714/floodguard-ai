@@ -13,3 +13,4 @@ pandas>=2.0.0
 pyarrow>=12.0.0
 db-dtypes>=1.1.1
 pypdf>=3.0.0
+Pillow>=10.0.0
