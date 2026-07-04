@@ -53,7 +53,7 @@ def get_elevation_profile(
     if api_key:
         try:
             url = f"https://maps.googleapis.com/maps/api/elevation/json?locations={latitude},{longitude}&key={api_key}"
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=15)
             response.raise_for_status()
             data = response.json()
             

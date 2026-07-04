@@ -11,6 +11,7 @@ from app.tools.weather import get_weather_telemetry
 from app.tools.elevation import get_elevation_profile
 from app.tools.routing import calculate_safe_route
 from app.tools.simulation import run_what_if_simulation
+from app.tools.places import geocode_place, get_place_photo_references, download_place_photo
 from google import genai
 
 class TestRealIntegration(unittest.TestCase):
@@ -163,6 +164,35 @@ class TestRealIntegration(unittest.TestCase):
         print(f"  Total FVI Reduction: {result['fvi_reduction_percent']}%")
         print(f"  Estimated Protected Residents: {result['estimated_residents_protected']}")
         print(f"  Model Explanation: {result['explanation']}")
+
+    def test_7_real_places_photos(self):
+        """Test geocoding and downloading real building photos via Google Places API."""
+        print("\n--- Test 7: Real Google Places Geocoding & Photo Downloads ---")
+        
+        place_name = "Bengaluru Palace"
+        print(f"Geocoding place: '{place_name}'")
+        geo_result = geocode_place(place_name)
+        
+        self.assertEqual(geo_result["source"], "google_geocoding_api")
+        self.assertIn("lat", geo_result)
+        self.assertIn("lng", geo_result)
+        place_id = geo_result["place_id"]
+        print(f"  Found Place ID: {place_id} at coordinates ({geo_result['lat']}, {geo_result['lng']})")
+        
+        # Get photo refs
+        print("Retrieving place photo references...")
+        photo_refs = get_place_photo_references(place_id)
+        print(f"  Found {len(photo_refs)} photos available for this location.")
+        
+        if photo_refs:
+            first_photo = photo_refs[0]["photo_reference"]
+            print("Downloading first photo bytes...")
+            img_bytes = download_place_photo(first_photo, max_width=400)
+            self.assertIsNotNone(img_bytes)
+            self.assertTrue(len(img_bytes) > 1000)
+            print(f"  Successfully downloaded {len(img_bytes)} bytes of the building photo.")
+        else:
+            print("  No photos available for this place.")
 
 if __name__ == "__main__":
     unittest.main()

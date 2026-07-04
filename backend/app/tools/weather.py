@@ -36,7 +36,7 @@ def get_weather_telemetry(
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={latitude}&longitude={longitude}&current=precipitation&hourly=precipitation"
         )
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=15)
         response.raise_for_status()
         data = response.json()
         

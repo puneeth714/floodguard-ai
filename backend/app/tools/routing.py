@@ -85,7 +85,7 @@ def calculate_safe_route(
             f"origin={urllib.parse.quote(origin)}&destination={urllib.parse.quote(destination)}"
             f"&alternatives=true&mode={travel_mode}&key={api_key}"
         )
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=15)
         response.raise_for_status()
         data = response.json()
         
