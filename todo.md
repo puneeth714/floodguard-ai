@@ -18,24 +18,24 @@ This document outlines the modular tasks, timelines, and verification steps requ
 
 ### Step 1: Database Layer & Mock Data Seeding (Day 1)
 *Goal: Initialize data storage schemas and populate mock datasets in BigQuery (or a local developer sandbox database) to supply inputs to our tools.*
-- [ ] **1.1 Directory Initialization**
-  - [ ] Create monorepo directory layout:
+- [x] **1.1 Directory Initialization**
+  - [x] Create monorepo directory layout:
     - `/backend` (FastAPI + Python ADK Code)
     - `/frontend-resident` (Resident Chat React SPA)
     - `/frontend-official` (Official Dashboard React SPA)
-  - [ ] Verify `AGENTS.md` is initialized at the root containing all custom requirements (ADK 2.0 graph routing, BigQuery RAG setup, waypoint injection, FVI scoring, resident/official APIs).
-- [ ] **1.2 Database Schema Creation**
-  - [ ] Initialize BigQuery dataset `floodguard_db` (or sandbox alternative).
-  - [ ] Create table schemas:
+  - [x] Verify `AGENTS.md` is initialized at the root containing all custom requirements (ADK 2.0 graph routing, BigQuery RAG setup, waypoint injection, FVI scoring, resident/official APIs).
+- [x] **1.2 Database Schema Creation**
+  - [x] Initialize BigQuery dataset `floodguard_db` (or sandbox alternative).
+  - [x] Create table schemas:
     - `vulnerability_grids`: Columns for Latitude, Longitude, Altitude, Slope, and Baseline Drainage.
     - `drainage_network`: Points of BBMP stormwater drains with `blocked`/`cleared` status.
     - `active_sos`: Real-time distress logs (session_id, coordinates, depth, photo_url, timestamp, status).
-- [ ] **1.3 Mock Data Insertion & Validation**
-  - [ ] Write Python seeding script `/backend/scripts/seed_mock_data.py` to:
+- [x] **1.3 Mock Data Insertion & Validation**
+  - [x] Write Python seeding script `/backend/scripts/seed_mock_data.py` to:
     - Ingest BBMP low-lying KML/CSV coordinates.
     - Define and pre-seed active flood polygons (Silk Board and Bellandur coordinates).
     - Cache altitude values for 100+ key grid coordinates in Bengaluru.
-  - [ ] **Verification**: Run raw SQL queries to confirm datasets are active and retrievable.
+  - [x] **Verification**: Run raw SQL queries to confirm datasets are active and retrievable.
 
 ---
 
