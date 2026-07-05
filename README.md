@@ -38,11 +38,12 @@ FloodGuard AI is a predictive, AI-powered Decision Intelligence Platform designe
 │   │   ├── db/                        # BigQuery connectors
 │   │   └── tools/                     # Routing, Vision, Weather APIs
 │   ├── scripts/                       # Database seeding scripts
-│   └── tests/                         # Agent & Tool unit tests
+│   └── tests/                         # Unit & Scenario integration tests
 ├── frontend-resident/                 # Resident Chat SPA
 ├── frontend-official/                 # Official Dashboard SPA
 ├── docs/                              # System Specs & Guidelines
 │   ├── system_design_spec.md          # Main Architectural Specification
+│   ├── app_product_document.md        # Product Specification Document
 │   └── demo_constraints.md            # Hackathon assumptions & overrides
 ├── todo.md                            # Bottom-up project checklist
 └── README.md                          # Project Overview (This file)
@@ -58,7 +59,7 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --port 8000 --reload
 ```
 
 ### 2. Run the Resident Frontend
@@ -73,4 +74,10 @@ npm run dev
 cd frontend-official
 npm install
 npm run dev
+```
+
+### 4. Run the Scenario Tests
+```bash
+cd backend
+./venv/bin/python -m unittest tests/test_scenarios.py
 ```

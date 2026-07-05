@@ -138,4 +138,14 @@ AI agents working in this repository MUST document new engineering learnings, pa
 6. **Dynamic Test Mode Profile Injection in clean ADK Web Sessions** (July 4, 2026):
    - *Problem*: Running `adk web` runs the raw agents directly and bypasses API wrappers, leaving coordinates as `None` and causing tool input validation errors.
    - *Remedy*: Within the `get_session_context` tool, check if coordinates are `None` under `test` mode, and auto-load the default mock profile variables directly into the session state (`tool_context.state`).
+7. **BigQuery Streaming Buffer Writing Strategy** (July 5, 2026):
+   - *Problem*: Performing SQL `UPDATE` operations on rows that are currently residing in BigQuery's active streaming buffer throws write lock exceptions.
+   - *Remedy*: Shift to an append-only architecture where state transitions are inserted as new rows with updated timestamps, and resolve the latest status using `ROW_NUMBER() OVER(PARTITION BY session_id ORDER BY timestamp DESC)` in dashboard summary queries.
+8. **ADK 2.0 Agent Role-Based Routing Prompts** (July 5, 2026):
+   - *Problem*: Resident profiles might bypass tool execution restrictions or execute what-if hydrological simulations that must be restricted to officials.
+   - *Remedy*: Write Orchestrator and agent prompts to check `user_role` dynamically, conditionalizing the execution of simulations, checklists, and RAG guidelines.
+9. **Gemini Free-Tier Rate-Limit Protection in Tests** (July 5, 2026):
+   - *Problem*: Executing 20 comprehensive scenario tests back-to-back triggers `429 RESOURCE_EXHAUSTED` due to the 15 requests per minute API limit.
+   - *Remedy*: Configure a 12-second sleep interval inside the test `setUp` method to limit requests to at most 5 per minute, ensuring complete execution success.
+
 

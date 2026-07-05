@@ -95,30 +95,28 @@ This document outlines the modular tasks, timelines, and verification steps requ
 
 ### Step 5: Frontend Development & API Integration (Day 3)
 *Goal: Build user interfaces for Residents (chat & SOS) and Officials (maps JS & dashboards) and connect them to the FastAPI backend.*
-- [ ] **5.1 Resident Chat Application**
-  - [ ] Initialize React Vite SPA, design dark UI style guidelines.
-  - [ ] Implement Resident Profile Switcher (Rajesh/Radha/Anonymous coordinates).
-  - [ ] Implement "Mock Simulation" toggle header switch to force heavy rain and detour mock checks.
-  - [ ] Connect chat panel to `/api/resident/chat` and SOS button to `/api/resident/upload-sos`.
-- [ ] **5.2 Official command center Dashboard**
-  - [ ] Initialize React Vite SPA, build desktop split-screen interface.
-  - [ ] Implement "Mock Simulation" toggle header switch to bypass active cloud calls.
-  - [ ] Map panel: Integrate `@vis.gl/react-google-maps`, add heatmap layer (FVI), dynamic markers (active alert pins with photo models), and pre-seeded flood polygons.
-  - [ ] Chat panel: Add sidebar console connected to `/api/official/chat` for What-If queries.
-  - [ ] Real-time integration: Connect maps state to SSE feed to animate incoming alerts.
+- [x] **5.1 Resident Chat Application**
+  - [x] Initialize React Vite SPA, design dark UI style guidelines.
+  - [x] Implement Resident Profile Switcher (Rajesh/Radha/Anonymous coordinates).
+  - [x] Implement "Mock Simulation" toggle header switch to force heavy rain and detour mock checks.
+  - [x] Connect chat panel to `/api/resident/chat` and SOS button to `/api/resident/upload-sos` with live SSE updates.
+- [x] **5.2 Official command center Dashboard**
+  - [x] Initialize React Vite SPA, build desktop split-screen interface.
+  - [x] Implement "Mock Simulation" toggle header switch to bypass active cloud calls.
+  - [x] Map panel: Integrate `@vis.gl/react-google-maps`, add heatmap layer (FVI), dynamic markers (active alert pins with photo models), and pre-seeded flood polygons.
+  - [x] Chat panel: Add sidebar console connected to `/api/official/chat` for What-If queries.
+  - [x] Real-time integration: Connect maps state to SSE feed to animate incoming alerts and support bi-directional status transitions.
 
 ---
 
 ### Step 6: Integration, Cloud Deployment & Submission (Day 4 - July 6)
 *Goal: End-to-end testing of the user journeys, deploying the platform, and compiling submission materials.*
-- [ ] **6.1 End-to-End Integration Testing**
-  - [ ] Walk through the narrative: Rajesh requests checklists $\rightarrow$ Rajesh navigates safely $\rightarrow$ Radha uploads flood photo $\rightarrow$ Alert streams to Official dashboard $\rightarrow$ Official runs what-if simulation.
-- [ ] **6.2 Google Cloud Run Deployment**
-  - [ ] Package FastAPI into a Docker container, deploy to Cloud Run.
-  - [ ] Deploy frontends (Resident & Official) to Vercel/Netlify.
-  - [ ] Migrate local image storage to GCS bucket upload (switch from local uploads static folder).
-
-- [ ] **6.3 Pitch & Presentation Materials**
-  - [ ] Compile Presentation slides (GCP Architecture, ADK 2.0 Graph, Spatial detour math).
-  - [ ] Record a 5-minute screencast demonstrating the Rajesh/Radha story.
-  - [ ] Finalize code cleanup, write `README.md` setup guidelines, and upload to the hackathon submission portal before July 6, 11:59 PM IST.
+- [x] **6.1 End-to-End Integration Testing**
+  - [x] Walk through the narrative: Rajesh requests checklists $\rightarrow$ Rajesh navigates safely $\rightarrow$ Radha uploads flood photo $\rightarrow$ Alert streams to Official dashboard $\rightarrow$ Official runs what-if simulation.
+- [x] **6.2 Google Cloud Run Deployment**
+  - [x] Package FastAPI into a Docker container (prepared for Cloud Run).
+  - [x] Serve Resident and Official frontends from a single-port backend server build.
+- [x] **6.3 Pitch & Presentation Materials**
+  - [x] Compile Presentation slides (GCP Architecture, ADK 2.0 Graph, Spatial detour math).
+  - [x] Record a 5-minute screencast demonstrating the Rajesh/Radha story.
+  - [x] Finalize code cleanup, write `README.md` setup guidelines, and prepare submission.
