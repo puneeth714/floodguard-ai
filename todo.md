@@ -81,14 +81,15 @@ This document outlines the modular tasks, timelines, and verification steps requ
 
 ### Step 4: FastAPI Web Controllers & Event Streams (Day 2)
 *Goal: Expose the ADK 2.0 graph and database summaries as secure, role-separated API endpoints.*
-- [ ] **4.1 Resident APIs**
-  - [ ] Expose `POST /api/resident/chat` (receives session_id, history, and location).
-  - [ ] Expose `POST /api/resident/upload-sos` (logs image bytes and flags active SOS points).
-- [ ] **4.2 Official APIs**
-  - [ ] Expose `POST /api/official/chat` (administrative RAG and simulations).
-  - [ ] Expose `GET /api/official/dashboard-summary` (JSON of active alerts, pumps, and drains).
-  - [ ] Expose `GET /api/official/live-sos-feed` using Server-Sent Events (SSE) to stream active SOS uploads from residents.
-  - [ ] **Verification**: Open Swagger Docs (`/docs`) and verify endpoints return correct JSON payloads.
+- [x] **4.1 Resident APIs**
+  - [x] Expose `POST /api/resident/chat` (receives session_id, history, and location).
+  - [x] Expose `POST /api/resident/upload-sos` (logs image bytes and flags active SOS points).
+- [x] **4.2 Official APIs**
+  - [x] Expose `POST /api/official/chat` (administrative RAG and simulations).
+  - [x] Expose `GET /api/official/dashboard-summary` (JSON of active alerts, pumps, and drains).
+  - [x] Expose `GET /api/official/live-sos-feed` using Server-Sent Events (SSE) to stream active SOS uploads from residents.
+  - [x] **Verification**: Run FastAPI API tests (`tests/test_api.py`) to verify all controller routes return correct JSON payloads and streaming responses.
+
 
 ---
 
