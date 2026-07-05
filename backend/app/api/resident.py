@@ -55,6 +55,8 @@ async def resident_chat(payload: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Orchestrator error: {str(e)}")
 
+import requests
+
 async def analyze_sos_image_background(
     session_id: str,
     image_path: str,
@@ -65,7 +67,7 @@ async def analyze_sos_image_background(
 ):
     """
     Background worker that runs the Gemini Flash Vision tool to estimate
-    flood depth/severity and update the active_sos record in BigQuery.
+    flood depth/severity and saves the completed alert once into BigQuery.
     """
     try:
         print(f"Background Task: Analyzing SOS image {image_path} for session {session_id}...")
@@ -73,17 +75,22 @@ async def analyze_sos_image_background(
         vision_result = vision_tool.analyze_flood_image(image_path)
         
         depth = float(vision_result.water_depth_cm)
-        severity = vision_result.hazard_level.value  # 'low', 'medium', 'high', 'critical'
+        severity = vision_result.severity.value  # 'low', 'medium', 'high', 'critical'
         
         print(f"Vision Result: Estimated depth {depth}cm, severity: {severity}")
         
-        # 1. Update BigQuery table
-        query = f"""
-        UPDATE `{bq_client.dataset_ref}.active_sos`
-        SET detected_depth = {depth}, status = 'active'
-        WHERE session_id = '{session_id}'
-        """
-        bq_client.client.query(query).result()
+        # 1. Insert completed row into BigQuery (avoids streaming buffer UPDATE constraints!)
+        row = {
+            "session_id": session_id,
+            "user_id": "resident",
+            "lat": lat,
+            "lng": lng,
+            "detected_depth": depth,
+            "photo_url": photo_url,
+            "status": "active",
+            "timestamp": timestamp_str
+        }
+        bq_client.insert_rows("active_sos", [row])
         
         # 2. Broadcast updated state through SSE feed
         updated_data = {
@@ -100,16 +107,21 @@ async def analyze_sos_image_background(
         
     except Exception as e:
         print(f"Error analyzing image in background task: {e}")
-        # Mark as error or default active state
+        # Insert fallback record in BigQuery
+        row = {
+            "session_id": session_id,
+            "user_id": "resident",
+            "lat": lat,
+            "lng": lng,
+            "detected_depth": 35.0,  # Fallback depth
+            "photo_url": photo_url,
+            "status": "active_error",
+            "timestamp": timestamp_str
+        }
         try:
-            query = f"""
-            UPDATE `{bq_client.dataset_ref}.active_sos`
-            SET status = 'active_error'
-            WHERE session_id = '{session_id}'
-            """
-            bq_client.client.query(query).result()
+            bq_client.insert_rows("active_sos", [row])
         except Exception as bq_err:
-            print(f"Failed to set BQ error status: {bq_err}")
+            print(f"Failed to write BQ fallback record: {bq_err}")
 
 @router.post("/upload-sos")
 async def upload_sos(
@@ -121,8 +133,8 @@ async def upload_sos(
 ):
     """
     Allows residents to upload geo-tagged photos of flash flood locations.
-    Stores photos locally, logs to BigQuery, broadcasts SSE, and kicks off
-    background vision analysis.
+    Stores photos locally, broadcasts initial SSE event, and delegates
+    BQ insertion and vision analysis to background task.
     """
     # 1. Generate filename and save locally
     file_ext = os.path.splitext(file.filename)[1] or ".png"
@@ -139,27 +151,7 @@ async def upload_sos(
     photo_url = f"/static/uploads/{filename}"
     timestamp_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
     
-    # 2. Pre-seed the distress event row in BigQuery
-    row = {
-        "session_id": session_id,
-        "user_id": "resident",
-        "lat": latitude,
-        "lng": longitude,
-        "detected_depth": None,
-        "photo_url": photo_url,
-        "status": "pending",
-        "timestamp": timestamp_str
-    }
-    
-    try:
-        bq_client.insert_rows("active_sos", [row])
-    except Exception as e:
-        # Cleanup file if DB insert fails
-        if os.path.exists(local_path):
-            os.remove(local_path)
-        raise HTTPException(status_code=500, detail=f"Database logging failure: {e}")
-        
-    # 3. Broadcast initial SOS alert to all listening map portals
+    # 2. Broadcast initial SOS alert to all listening map portals (before BigQuery insert finishes)
     sos_data = {
         "session_id": session_id,
         "lat": latitude,
@@ -172,7 +164,7 @@ async def upload_sos(
     }
     await sse_manager.broadcast({"event": "new_sos", "data": sos_data})
     
-    # 4. Spawn background thread for Vision Agent depth estimation
+    # 3. Spawn background thread to perform single database insert and vision analysis
     background_tasks.add_task(
         analyze_sos_image_background,
         session_id=session_id,
@@ -189,3 +181,23 @@ async def upload_sos(
         "photo_url": photo_url,
         "message": " Distress signal logged. Back-end analysis running."
     }
+
+@router.get("/reverse-geocode")
+def reverse_geocode(latitude: float, longitude: float):
+    """
+    Reverse geocodes latitude/longitude coordinates into a friendly address string.
+    """
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        return {"formatted_address": f"GPS Area ({latitude:.4f}, {longitude:.4f})"}
+    try:
+        url = f"https://maps.googleapis.com/maps/api/geocode/json?latlng={latitude},{longitude}&key={api_key}"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") == "OK" and data.get("results"):
+            return {"formatted_address": data["results"][0]["formatted_address"]}
+    except Exception as e:
+        print(f"Reverse geocode error: {e}")
+    return {"formatted_address": f"GPS Area ({latitude:.4f}, {longitude:.4f})"}
+

@@ -5,7 +5,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
   ? 'http://localhost:8000'
   : window.location.protocol + '//' + window.location.hostname + ':8000';
 
-// Coordinates to friendly name mapper
+// Coordinates to friendly name mapper (for fast local lookups)
 const getFriendlyLocationName = (lat, lng) => {
   const latitude = parseFloat(lat).toFixed(4);
   const longitude = parseFloat(lng).toFixed(4);
@@ -19,7 +19,7 @@ const getFriendlyLocationName = (lat, lng) => {
   if (latitude === "12.9716" && longitude === "77.5946") {
     return "Bengaluru City Center (Fallback)";
   }
-  return `Synchronized GPS Area (${latitude}, ${longitude})`;
+  return `GPS Area (${latitude}, ${longitude})`;
 };
 
 // Inline Markdown Parser to parse **bold** and Google Map URLs
@@ -136,6 +136,7 @@ function App() {
   const [profile, setProfile] = useState('rajesh');
   const [sessionId, setSessionId] = useState('');
   const [gpsCoords, setGpsCoords] = useState({ lat: 12.9279, lng: 77.6271 });
+  const [resolvedAddress, setResolvedAddress] = useState('HSR Layout Sector 4 (Basin Hotspot)');
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -152,6 +153,22 @@ function App() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Helper to reverse geocode coordinate points asynchronously via backend
+  const updateAddress = async (lat, lng, defaultName) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/resident/reverse-geocode?latitude=${lat}&longitude=${lng}`);
+      if (response.ok) {
+        const data = await response.json();
+        setResolvedAddress(data.formatted_address);
+        return data.formatted_address;
+      }
+    } catch (e) {
+      console.warn("Reverse geocoding request failed", e);
+    }
+    setResolvedAddress(defaultName);
+    return defaultName;
+  };
+
   // Initialize unique session on mount or profile change
   useEffect(() => {
     const newSessionId = `session_${profile}_${Math.random().toString(36).substr(2, 6)}`;
@@ -162,27 +179,32 @@ function App() {
     if (profile === 'rajesh') {
       const coords = { lat: 12.9279, lng: 77.6271 };
       setGpsCoords(coords);
+      const friendlyName = getFriendlyLocationName(coords.lat, coords.lng);
+      setResolvedAddress(friendlyName);
       setMessages([
         {
           id: 'welcome',
           role: 'assistant',
-          content: `Hello Rajesh. Heavy rain is reported in your area. I have synchronized your location:\n**${getFriendlyLocationName(coords.lat, coords.lng)}**.\n\nLet me know if you need to check local risk status or find routes detour.`,
+          content: `Hello Rajesh. Heavy rain is reported in your area. I have synchronized your location:\n**${friendlyName}**.\n\nLet me know if you need to check local risk status or find routes detour.`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
     } else if (profile === 'radha') {
       const coords = { lat: 12.9340, lng: 77.6320 };
       setGpsCoords(coords);
+      const friendlyName = getFriendlyLocationName(coords.lat, coords.lng);
+      setResolvedAddress(friendlyName);
       setMessages([
         {
           id: 'welcome',
           role: 'assistant',
-          content: `Hello Radha. I have synchronized your location:\n**${getFriendlyLocationName(coords.lat, coords.lng)}**.\n\nPlease ask any questions about nearby evacuation paths or storm risk.`,
+          content: `Hello Radha. I have synchronized your location:\n**${friendlyName}**.\n\nPlease ask any questions about nearby evacuation paths or storm risk.`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
     } else {
       // Anonymous / Real GPS mode
+      setResolvedAddress('Locating...');
       setMessages([
         {
           id: 'welcome',
@@ -202,32 +224,34 @@ function App() {
   const triggerBrowserGeolocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const coords = {
             lat: parseFloat(position.coords.latitude.toFixed(6)),
             lng: parseFloat(position.coords.longitude.toFixed(6))
           };
           setGpsCoords(coords);
+          const address = await updateAddress(coords.lat, coords.lng, `GPS Area (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`);
           setMessages(prev => [
             ...prev.filter(m => m.id !== 'welcome'),
             {
               id: 'welcome_gps',
               role: 'assistant',
-              content: `GPS telemetry synchronized successfully!\n\nLocation: **${getFriendlyLocationName(coords.lat, coords.lng)}**.\n\nHow can I help you check risk status or plan detours in this area?`,
+              content: `GPS telemetry synchronized successfully!\n\nLocation: **${address}**.\n\nHow can I help you check risk status or plan detours in this area?`,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]);
         },
-        (error) => {
+        async (error) => {
           console.warn("Geolocation denied/failed, falling back to Bangalore center", error);
           const fallback = { lat: 12.9716, lng: 77.5946 };
           setGpsCoords(fallback);
+          const address = await updateAddress(fallback.lat, fallback.lng, "Bengaluru City Center (Fallback)");
           setMessages(prev => [
             ...prev.filter(m => m.id !== 'welcome'),
             {
               id: 'welcome_fallback',
               role: 'assistant',
-              content: `Location permissions denied. Loaded fallback area:\n**${getFriendlyLocationName(fallback.lat, fallback.lng)}**.\n\nHow can I assist you?`,
+              content: `Location permissions denied. Loaded fallback area:\n**${address}**.\n\nHow can I assist you?`,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]);
@@ -407,10 +431,10 @@ function App() {
         </div>
       </header>
 
-      {/* Synchronized status bar showing friendly name */}
+      {/* Synchronized status bar showing resolved street address */}
       <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 16px', fontSize: '11px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
         <span>Active Location:</span>
-        <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>{getFriendlyLocationName(gpsCoords.lat, gpsCoords.lng)}</span>
+        <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>{resolvedAddress}</span>
       </div>
 
       {/* Chat Area */}
@@ -503,7 +527,7 @@ function App() {
               </div>
               <div className="telemetry-row">
                 <span className="telemetry-label">Approx Location:</span>
-                <span className="telemetry-value" style={{ color: 'var(--accent-orange)' }}>{getFriendlyLocationName(sosTelemetry.lat, sosTelemetry.lng)}</span>
+                <span className="telemetry-value" style={{ color: 'var(--accent-orange)' }}>{resolvedAddress}</span>
               </div>
               <div className="telemetry-row">
                 <span className="telemetry-label">Status:</span>
