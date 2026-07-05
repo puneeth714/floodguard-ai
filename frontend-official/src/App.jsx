@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import './App.css';
 
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:8000'
-  : window.location.protocol + '//' + window.location.hostname + ':8000';
+const API_BASE = '';
 
 // Inner component to render weighted Google Maps Heatmap Layer
 function HeatmapOverlay({ points, visible }) {

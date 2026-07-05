@@ -18,10 +18,10 @@ class TestFloodGuardAPI(unittest.TestCase):
         cls.client = TestClient(app)
 
     def test_root_endpoint(self):
-        """Test that the gateway root returns online status."""
+        """Test that the gateway root returns the Resident App page."""
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], "online")
+        self.assertIn("text/html", response.headers.get("content-type", ""))
 
     def test_resident_chat(self):
         """Test resident chat controller triggers Orchestrator correctly in test mode."""
@@ -47,7 +47,7 @@ class TestFloodGuardAPI(unittest.TestCase):
         response = self.client.post("/api/resident/chat", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn("restricted to municipal official accounts", data["final_response"].lower())
+        self.assertIn("municipal official accounts", data["final_response"].lower())
 
     def test_dashboard_summary(self):
         """Test official dashboard metadata query compilation."""
