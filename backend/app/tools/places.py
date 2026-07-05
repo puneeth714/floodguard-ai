@@ -6,28 +6,42 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"))
 
-def geocode_place(place_name: str, use_mock: bool = False) -> Dict[str, Any]:
+from google.adk.tools.tool_context import ToolContext
+
+def geocode_place(
+    place_name: str, 
+    use_mock: bool = False, 
+    tool_context: Optional[ToolContext] = None
+) -> Dict[str, Any]:
     """
     Resolves a textual place name into geographical coordinates.
     """
+    def _save_and_return(res: Dict[str, Any]) -> Dict[str, Any]:
+        if tool_context is not None:
+            tool_context.state["latitude"] = res.get("lat")
+            tool_context.state["longitude"] = res.get("lng")
+            tool_context.state["formatted_address"] = res.get("formatted_address")
+            tool_context.state["place_id"] = res.get("place_id")
+        return res
+
     if use_mock:
-        return {
+        return _save_and_return({
             "source": "mock_override",
             "lat": 12.9279,
             "lng": 77.6271,
             "formatted_address": "HSR Layout Sector 4, Bengaluru, Karnataka, India (Simulated)",
             "place_id": "ChIJc2EYO7QWrjsR5t7HM5lZ4t0"
-        }
+        })
 
     api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     if not api_key:
-        return {
+        return _save_and_return({
             "source": "fallback_Bangalore_center",
             "lat": 12.9716,
             "lng": 77.5946,
             "formatted_address": "Bengaluru, Karnataka, India (No Key)",
             "place_id": "ChIJc2EYO7QWrjsR5t7HM5lZ4t0"
-        }
+        })
         
     try:
         url = f"https://maps.googleapis.com/maps/api/geocode/json?address={requests.utils.quote(place_name)}&key={api_key}"
@@ -38,23 +52,24 @@ def geocode_place(place_name: str, use_mock: bool = False) -> Dict[str, Any]:
         if data.get("status") == "OK" and data.get("results"):
             result = data["results"][0]
             loc = result["geometry"]["location"]
-            return {
+            return _save_and_return({
                 "source": "google_geocoding_api",
                 "lat": float(loc["lat"]),
                 "lng": float(loc["lng"]),
                 "formatted_address": result.get("formatted_address"),
                 "place_id": result.get("place_id")
-            }
+            })
     except Exception as e:
         print(f"Geocoding error: {e}")
         
-    return {
+    return _save_and_return({
         "source": "fallback_error",
         "lat": 12.9716,
         "lng": 77.5946,
         "formatted_address": "Bengaluru, Karnataka, India (Fallback)",
         "place_id": "ChIJc2EYO7QWrjsR5t7HM5lZ4t0"
-    }
+    })
+
 
 def get_place_photo_references(place_id: str, use_mock: bool = False) -> List[Dict[str, Any]]:
     """

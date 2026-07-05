@@ -15,10 +15,9 @@ class TestFloodGuardAgents(unittest.IsolatedAsyncioTestCase):
     def setUpClass(cls):
         # Load environment variables
         load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"))
-        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
-        os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "True"
         os.environ["GOOGLE_CLOUD_PROJECT"] = "floodguardai-501409"
         print("\n=== Initializing ADK 2.0 Agent Test Suite ===")
+
 
 
     async def test_1_geospatial_flow(self):

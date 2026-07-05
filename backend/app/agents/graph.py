@@ -10,6 +10,7 @@ from app.tools.routing import calculate_safe_route
 from app.tools.places import geocode_place
 from app.tools.simulation import run_what_if_simulation
 from app.tools.guidelines import search_disaster_guidelines
+from app.tools.fvi import calculate_flood_vulnerability_index
 
 # Import prompts
 from app.agents.prompts import (
@@ -19,26 +20,6 @@ from app.agents.prompts import (
     POLICY_AGENT_INSTRUCTION
 )
 
-
-# Custom FVI calculation tool
-def calculate_flood_vulnerability_index(tool_context: ToolContext) -> dict:
-    """
-    Calculates the Flood Vulnerability Index (FVI) using current weather 
-    and elevation properties stored in session state.
-    """
-    elev = tool_context.state.get("elevation_data", {})
-    weather = tool_context.state.get("weather_data", {})
-    
-    rel_sink = elev.get("relative_sink_depth", 0.0)
-    slope = elev.get("slope_percent", 0.0)
-    rain = weather.get("precipitation_mm_hr", 0.0)
-    
-    dist_penalty = 50.0 if rel_sink > 2.0 else 10.0
-    fvi = (0.35 * rel_sink) + (0.15 * max(0.0, 3.0 - slope)) + (0.30 * rain) + (0.20 * dist_penalty)
-    fvi = min(100.0, max(0.0, fvi))
-    
-    tool_context.state["flood_risk_score"] = fvi
-    return {"flood_risk_score": fvi}
 
 # Session context helper tool
 def get_session_context(tool_context: ToolContext) -> dict:
