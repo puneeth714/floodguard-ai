@@ -35,6 +35,7 @@ def get_session_context(tool_context: ToolContext) -> dict:
     role = tool_context.state.get("user_role")
     img = tool_context.state.get("image_path")
     profile_name = tool_context.state.get("demo_profile")
+    lang = tool_context.state.get("language") or "en"
 
     # If running in test mode and coordinates are empty (e.g. initial adk web turn),
     # auto-load the default mock profile details.
@@ -62,7 +63,8 @@ def get_session_context(tool_context: ToolContext) -> dict:
         "latitude": lat,
         "longitude": lng,
         "destination": dest,
-        "image_path": img
+        "image_path": img,
+        "language": lang
     }
 
 

@@ -43,5 +43,9 @@ ENV PORT=8080
 ENV PYTHONPATH=/workspace/backend
 ENV GOOGLE_APPLICATION_CREDENTIALS=/workspace/backend/floodguard-sa-key.json
 
+# Copy and configure startup script
+COPY backend/start.sh ./backend/start.sh
+RUN chmod +x ./backend/start.sh
+
 WORKDIR /workspace/backend
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+CMD ["./start.sh"]

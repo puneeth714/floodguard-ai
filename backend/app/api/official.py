@@ -21,11 +21,26 @@ class OfficialChatRequest(BaseModel):
     demo_profile: Optional[str] = None
 
 @router.post("/chat")
-async def official_chat(payload: OfficialChatRequest):
+async def official_chat(payload: OfficialChatRequest, stream: bool = False):
     """
     Executes a chat session turn for a municipal official.
     Binds the 'official' role boundary to authorize simulations and vector searches.
+    Supports streaming if stream=True parameter is passed.
     """
+    if stream:
+        async def event_generator():
+            try:
+                async for event in orchestrator.run_stream(
+                    session_id=payload.session_id,
+                    user_query=payload.user_query,
+                    user_role="official",
+                    demo_profile=payload.demo_profile
+                ):
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
     try:
         result = await orchestrator.run(
             session_id=payload.session_id,

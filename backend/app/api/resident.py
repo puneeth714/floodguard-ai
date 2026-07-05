@@ -6,6 +6,9 @@ from typing import Optional
 from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
+from google import genai
+from google.genai import types as genai_types
+from app.core.config import settings
 from app.agents.orchestrator import Orchestrator
 from app.db.bigquery_client import BigQueryClientWrapper
 from app.tools.vision import VisionTool
@@ -33,13 +36,56 @@ class ChatRequest(BaseModel):
     image_path: Optional[str] = None
     user_role: Optional[str] = "resident"
     demo_profile: Optional[str] = None
+    language: Optional[str] = "en"
+
+import json
+from fastapi.responses import StreamingResponse
 
 @router.post("/chat")
-async def resident_chat(payload: ChatRequest):
+async def resident_chat(payload: ChatRequest, stream: bool = False):
     """
     Executes a chat session turn for a resident using the Orchestrator.
     Handles location, weather, and detour waypoint injection.
+    Supports streaming if stream=True parameter is passed.
     """
+    if stream:
+        async def event_generator():
+            try:
+                async for event in orchestrator.run_stream(
+                    session_id=payload.session_id,
+                    user_query=payload.user_query,
+                    latitude=payload.latitude,
+                    longitude=payload.longitude,
+                    destination=payload.destination,
+                    image_path=payload.image_path,
+                    user_role=payload.user_role or "resident",
+                    demo_profile=payload.demo_profile,
+                    language=payload.language
+                ):
+                    if event.get("type") == "final":
+                        # Clean and parse JSON from content
+                        final_text = event.get("content", "").strip()
+                        if final_text.startswith("```"):
+                            lines = final_text.splitlines()
+                            if lines and lines[0].startswith("```"):
+                                lines = lines[1:]
+                            if lines and lines[-1].strip().startswith("```"):
+                                lines = lines[:-1]
+                            final_text = "\n".join(lines).strip()
+                        try:
+                            parsed_json = json.loads(final_text)
+                            event["content"] = parsed_json
+                        except Exception:
+                            event["content"] = {
+                                "final_response": event.get("content", ""),
+                                "status_alert": None,
+                                "widgets": []
+                            }
+                    yield f"data: {json.dumps(event)}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
     try:
         result = await orchestrator.run(
             session_id=payload.session_id,
@@ -49,9 +95,41 @@ async def resident_chat(payload: ChatRequest):
             destination=payload.destination,
             image_path=payload.image_path,
             user_role=payload.user_role or "resident",
-            demo_profile=payload.demo_profile
+            demo_profile=payload.demo_profile,
+            language=payload.language
         )
-        return result
+        
+        # Clean and parse JSON from the final response
+        final_text = result.get("final_response", "").strip()
+        if final_text.startswith("```"):
+            lines = final_text.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip().startswith("```"):
+                lines = lines[:-1]
+            final_text = "\n".join(lines).strip()
+            
+        try:
+            parsed_response = json.loads(final_text)
+            if "final_response" not in parsed_response:
+                parsed_response = {
+                    "final_response": final_text,
+                    "status_alert": None,
+                    "widgets": []
+                }
+        except Exception:
+            parsed_response = {
+                "final_response": result.get("final_response", ""),
+                "status_alert": None,
+                "widgets": []
+            }
+            
+        return {
+            "final_response": parsed_response.get("final_response", ""),
+            "status_alert": parsed_response.get("status_alert"),
+            "widgets": parsed_response.get("widgets", []),
+            "state": result.get("state", {})
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Orchestrator error: {str(e)}")
 
@@ -265,4 +343,41 @@ def get_localized_alerts(lat: float, lng: float):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch localized alerts: {str(e)}")
+
+@router.post("/voice-to-text")
+async def voice_to_text(file: UploadFile = File(...)):
+    """
+    Transcribes uploaded audio bytes into localized text using the Gemini model.
+    Supports English, Kannada, Hindi, and Telugu.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Missing GEMINI_API_KEY environment variable.")
+    
+    try:
+        # Load audio bytes
+        audio_bytes = await file.read()
+        mime_type = file.content_type or "audio/webm"
+        
+        # Initialize client
+        client = genai.Client(api_key=api_key)
+        
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[
+                "You are an expert multilingual speech-to-text transcriber. Transcribe this audio recording into clear, punctuated text. "
+                "The audio might be spoken in English, Kannada, Hindi, or Telugu. Provide the exact transcript in the language spoken. "
+                "If the audio is completely silent or contains only static, return an empty string. "
+                "Do not add any translations, explanations, notes, or intros.",
+                genai_types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+            ]
+        )
+        
+        transcript = response.text or ""
+        transcript = transcript.strip()
+        
+        return {"transcript": transcript}
+    except Exception as e:
+        print(f"Voice translation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Voice transcription failed: {str(e)}")
 

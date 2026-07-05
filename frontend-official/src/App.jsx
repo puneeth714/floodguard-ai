@@ -313,7 +313,7 @@ function App() {
     setIsChatLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/official/chat`, {
+      const response = await fetch(`${API_BASE}/api/official/chat?stream=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -323,12 +323,44 @@ function App() {
       });
 
       if (!response.ok) throw new Error("Console communication failed");
-      const data = await response.json();
 
+      const tempId = `temp_${Date.now()}`;
       setChatMessages(prev => [
         ...prev,
-        { id: `ai_${Date.now()}`, role: 'ai', content: data.final_response }
+        { id: tempId, role: 'ai', content: '⏳ Accessing simulation console...' }
       ]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Save partial line
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const payload = JSON.parse(line.substring(6));
+              if (payload.type === 'status' || payload.type === 'tool') {
+                setChatMessages(prev => prev.map(m => m.id === tempId ? { ...m, content: `⚙️ **Status**: *${payload.content}*` } : m));
+              } else if (payload.type === 'final') {
+                setChatMessages(prev => prev.map(m => m.id === tempId ? {
+                  ...m,
+                  id: `ai_${Date.now()}`,
+                  content: payload.content
+                } : m));
+              }
+            } catch (e) {
+              console.warn("Parse stream chunk error:", e);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error(err);
       setChatMessages(prev => [

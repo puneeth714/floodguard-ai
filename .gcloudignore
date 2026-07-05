@@ -1,0 +1,20 @@
+# gcloud ignore rules
+# This file defines which files are NOT uploaded to Google Cloud Build.
+.gcloudignore
+.git
+.gitignore
+
+# Folders to ignore
+node_modules/
+backend/venv/
+backend/.venv/
+**/node_modules/
+frontend-resident/node_modules/
+frontend-official/node_modules/
+tmp/
+archive/
+logs/
+
+# Whitelist credentials for Cloud Build deployment validation
+!backend/floodguard-sa-key.json
+!backend/.env
