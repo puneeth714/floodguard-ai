@@ -1,7 +1,136 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
-const API_BASE = '';
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : window.location.protocol + '//' + window.location.hostname + ':8000';
+
+// Coordinates to friendly name mapper
+const getFriendlyLocationName = (lat, lng) => {
+  const latitude = parseFloat(lat).toFixed(4);
+  const longitude = parseFloat(lng).toFixed(4);
+  
+  if (latitude === "12.9279" && longitude === "77.6271") {
+    return "HSR Layout Sector 4 (Basin Hotspot)";
+  }
+  if (latitude === "12.9340" && longitude === "77.6320") {
+    return "HSR Layout Sector 2 (Elevated)";
+  }
+  if (latitude === "12.9716" && longitude === "77.5946") {
+    return "Bengaluru City Center (Fallback)";
+  }
+  return `Synchronized GPS Area (${latitude}, ${longitude})`;
+};
+
+// Inline Markdown Parser to parse **bold** and Google Map URLs
+const parseInlineMarkdown = (text) => {
+  if (typeof text !== 'string') return text;
+  
+  const boldRegex = /\*\*([^*]+)\*\*/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = boldRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    parts.push(<strong key={match.index} style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>{match[1]}</strong>);
+    lastIndex = boldRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.map((part, index) => {
+    if (typeof part === 'string') {
+      const mapLinkRegex = /(https:\/\/www\.google\.com\/maps\/dir\/[^\s\)]+)/g;
+      const subparts = part.split(mapLinkRegex);
+      return subparts.map((subpart, subindex) => {
+        if (subpart.match(mapLinkRegex)) {
+          return (
+            <a key={`${index}-${subindex}`} href={subpart} target="_blank" rel="noopener noreferrer" className="safe-route-button">
+              <svg className="route-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', marginRight: '6px', fill: 'currentColor' }}>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              Open Safe Detour Navigation
+            </a>
+          );
+        }
+        return subpart;
+      });
+    }
+    return part;
+  });
+};
+
+// Paragraph/Block Markdown Parser
+const parseMarkdown = (text) => {
+  if (!text) return '';
+  
+  const lines = text.split('\n');
+  const elements = [];
+  
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    
+    // Unordered lists
+    if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+      const content = trimmed.replace(/^[\*\-]\s+/, '');
+      elements.push(
+        <li key={i} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'disc' }}>
+          {parseInlineMarkdown(content)}
+        </li>
+      );
+      return;
+    }
+    
+    // Ordered lists
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const content = trimmed.replace(/^\d+\.\s+/, '');
+      elements.push(
+        <li key={i} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'decimal' }}>
+          {parseInlineMarkdown(content)}
+        </li>
+      );
+      return;
+    }
+
+    // Subheadings
+    if (trimmed.startsWith('### ')) {
+      const content = trimmed.replace(/^###\s+/, '');
+      elements.push(
+        <h4 key={i} style={{ color: 'var(--accent-orange)', margin: '12px 0 6px', fontWeight: '700', fontSize: '15px' }}>
+          {parseInlineMarkdown(content)}
+        </h4>
+      );
+      return;
+    }
+    if (trimmed.startsWith('## ')) {
+      const content = trimmed.replace(/^##\s+/, '');
+      elements.push(
+        <h3 key={i} style={{ color: 'var(--accent-orange)', margin: '14px 0 8px', fontWeight: '700', fontSize: '17px' }}>
+          {parseInlineMarkdown(content)}
+        </h3>
+      );
+      return;
+    }
+
+    // Paragraph blocks or spacing
+    if (trimmed === '') {
+      elements.push(<div key={i} style={{ height: '6px' }} />);
+    } else {
+      elements.push(
+        <p key={i} style={{ marginBottom: '6px' }}>
+          {parseInlineMarkdown(line)}
+        </p>
+      );
+    }
+  });
+
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>{elements}</div>;
+};
 
 function App() {
   const [profile, setProfile] = useState('rajesh');
@@ -37,7 +166,7 @@ function App() {
         {
           id: 'welcome',
           role: 'assistant',
-          content: 'Hello Rajesh. Heavy rain is reported near HSR Sector 4. I have loaded your coordinate telemetry (12.9279, 77.6271). Let me know if you need to check safety or find route detours.',
+          content: `Hello Rajesh. Heavy rain is reported in your area. I have synchronized your location:\n**${getFriendlyLocationName(coords.lat, coords.lng)}**.\n\nLet me know if you need to check local risk status or find routes detour.`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -48,7 +177,7 @@ function App() {
         {
           id: 'welcome',
           role: 'assistant',
-          content: 'Hello Radha. Welcome back. I have loaded your HSR Layout Sector 2 coordinate details (12.9340, 77.6320). Heavy weather alerts are in effect.',
+          content: `Hello Radha. I have synchronized your location:\n**${getFriendlyLocationName(coords.lat, coords.lng)}**.\n\nPlease ask any questions about nearby evacuation paths or storm risk.`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -58,7 +187,7 @@ function App() {
         {
           id: 'welcome',
           role: 'assistant',
-          content: 'Locating you... Please authorize GPS coordinates access in your browser to check real-time flood risk.',
+          content: 'Locating your device... Please authorize GPS coordinates permission in your browser.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -84,7 +213,7 @@ function App() {
             {
               id: 'welcome_gps',
               role: 'assistant',
-              content: `GPS telemetry synchronized! Coordinates: (${coords.lat}, ${coords.lng}). How can I assist you in this area?`,
+              content: `GPS telemetry synchronized successfully!\n\nLocation: **${getFriendlyLocationName(coords.lat, coords.lng)}**.\n\nHow can I help you check risk status or plan detours in this area?`,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]);
@@ -98,7 +227,7 @@ function App() {
             {
               id: 'welcome_fallback',
               role: 'assistant',
-              content: `Unable to access GPS location. Loaded default center coordinates (${fallback.lat}, ${fallback.lng}). How can I assist you?`,
+              content: `Location permissions denied. Loaded fallback area:\n**${getFriendlyLocationName(fallback.lat, fallback.lng)}**.\n\nHow can I assist you?`,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]);
@@ -128,7 +257,7 @@ function App() {
       destParam = "13.1986,77.7066"; // KIA Airport coords
       setDestination(destParam);
     } else if (query.toLowerCase().includes('silk board')) {
-      destParam = "12.9180,77.6230"; // Silk Board coords
+      destParam = "12.9180,77.6271"; // Silk Board coords (using exact geocode_place mock to avoid mismatch)
       setDestination(destParam);
     }
 
@@ -256,25 +385,6 @@ function App() {
     }
   };
 
-  // Helper to parse google map links into action cards
-  const renderMessageContent = (content) => {
-    const mapLinkRegex = /(https:\/\/www\.google\.com\/maps\/dir\/[^\s\)]+)/g;
-    const parts = content.split(mapLinkRegex);
-    return parts.map((part, index) => {
-      if (part.match(mapLinkRegex)) {
-        return (
-          <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="safe-route-button">
-            <svg className="route-icon" viewBox="0 0 24 24">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-            Open Safe Detour Navigation
-          </a>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
   return (
     <>
       {/* Header */}
@@ -297,13 +407,19 @@ function App() {
         </div>
       </header>
 
+      {/* Synchronized status bar showing friendly name */}
+      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 16px', fontSize: '11px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+        <span>Active Location:</span>
+        <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>{getFriendlyLocationName(gpsCoords.lat, gpsCoords.lng)}</span>
+      </div>
+
       {/* Chat Area */}
       <div className="chat-container">
         <div className="messages-list">
           {messages.map((msg) => (
             <div key={msg.id} className={`message-wrapper ${msg.role}`}>
               <div className="message-bubble">
-                {renderMessageContent(msg.content)}
+                {parseMarkdown(msg.content)}
               </div>
               <span className="message-time">{msg.time}</span>
             </div>
@@ -384,6 +500,10 @@ function App() {
               <div className="telemetry-row">
                 <span className="telemetry-label">Signal Coordinates:</span>
                 <span className="telemetry-value">{sosTelemetry.lat.toFixed(4)}, {sosTelemetry.lng.toFixed(4)}</span>
+              </div>
+              <div className="telemetry-row">
+                <span className="telemetry-label">Approx Location:</span>
+                <span className="telemetry-value" style={{ color: 'var(--accent-orange)' }}>{getFriendlyLocationName(sosTelemetry.lat, sosTelemetry.lng)}</span>
               </div>
               <div className="telemetry-row">
                 <span className="telemetry-label">Status:</span>

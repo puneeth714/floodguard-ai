@@ -4,6 +4,133 @@ import './App.css';
 
 const API_BASE = '';
 
+// Coordinates to friendly name mapper
+const getFriendlyLocationName = (lat, lng) => {
+  const latitude = parseFloat(lat).toFixed(4);
+  const longitude = parseFloat(lng).toFixed(4);
+  
+  if (latitude === "12.9279" && longitude === "77.6271") {
+    return "HSR Layout Sector 4 (Basin Hotspot)";
+  }
+  if (latitude === "12.9340" && longitude === "77.6320") {
+    return "HSR Layout Sector 2 (Elevated)";
+  }
+  if (latitude === "12.9716" && longitude === "77.5946") {
+    return "Bengaluru City Center (Fallback)";
+  }
+  return `GPS Area (${latitude}, ${longitude})`;
+};
+
+// Inline Markdown Parser to parse **bold** and Google Map URLs
+const parseInlineMarkdown = (text) => {
+  if (typeof text !== 'string') return text;
+  
+  const boldRegex = /\*\*([^*]+)\*\*/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = boldRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    parts.push(<strong key={match.index} style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>{match[1]}</strong>);
+    lastIndex = boldRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.map((part, index) => {
+    if (typeof part === 'string') {
+      const mapLinkRegex = /(https:\/\/www\.google\.com\/maps\/dir\/[^\s\)]+)/g;
+      const subparts = part.split(mapLinkRegex);
+      return subparts.map((subpart, subindex) => {
+        if (subpart.match(mapLinkRegex)) {
+          return (
+            <a key={`${index}-${subindex}`} href={subpart} target="_blank" rel="noopener noreferrer" className="safe-route-button">
+              <svg className="route-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', marginRight: '6px', fill: 'currentColor' }}>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              Open Safe Detour Navigation
+            </a>
+          );
+        }
+        return subpart;
+      });
+    }
+    return part;
+  });
+};
+
+// Paragraph/Block Markdown Parser
+const parseMarkdown = (text) => {
+  if (!text) return '';
+  
+  const lines = text.split('\n');
+  const elements = [];
+  
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    
+    // Unordered lists
+    if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+      const content = trimmed.replace(/^[\*\-]\s+/, '');
+      elements.push(
+        <li key={i} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'disc' }}>
+          {parseInlineMarkdown(content)}
+        </li>
+      );
+      return;
+    }
+    
+    // Ordered lists
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const content = trimmed.replace(/^\d+\.\s+/, '');
+      elements.push(
+        <li key={i} style={{ marginLeft: '16px', marginBottom: '4px', listStyleType: 'decimal' }}>
+          {parseInlineMarkdown(content)}
+        </li>
+      );
+      return;
+    }
+
+    // Subheadings
+    if (trimmed.startsWith('### ')) {
+      const content = trimmed.replace(/^###\s+/, '');
+      elements.push(
+        <h4 key={i} style={{ color: 'var(--accent-orange)', margin: '12px 0 6px', fontWeight: '700', fontSize: '15px' }}>
+          {parseInlineMarkdown(content)}
+        </h4>
+      );
+      return;
+    }
+    if (trimmed.startsWith('## ')) {
+      const content = trimmed.replace(/^##\s+/, '');
+      elements.push(
+        <h3 key={i} style={{ color: 'var(--accent-orange)', margin: '14px 0 8px', fontWeight: '700', fontSize: '17px' }}>
+          {parseInlineMarkdown(content)}
+        </h3>
+      );
+      return;
+    }
+
+    // Paragraph blocks or spacing
+    if (trimmed === '') {
+      elements.push(<div key={i} style={{ height: '6px' }} />);
+    } else {
+      elements.push(
+        <p key={i} style={{ marginBottom: '6px' }}>
+          {parseInlineMarkdown(line)}
+        </p>
+      );
+    }
+  });
+
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>{elements}</div>;
+};
+
 // Inner component to render weighted Google Maps Heatmap Layer
 function HeatmapOverlay({ points, visible }) {
   const map = useMap();
@@ -103,7 +230,7 @@ function App() {
     {
       id: 'welcome',
       role: 'ai',
-      content: 'System Initialized. Access to guideline search (RAG) and simulation engines authenticated. Enter What-If queries below.'
+      content: 'System Initialized. Access to disaster RAG models and simulation engines online. Enter What-If queries below.'
     }
   ]);
   const [chatInput, setChatInput] = useState('');
@@ -140,7 +267,6 @@ function App() {
       const newAlert = JSON.parse(e.data);
       console.log("New distress signal streamed via SSE:", newAlert);
       setActiveSos(prev => {
-        // Avoid duplicate session_ids
         if (prev.some(a => a.session_id === newAlert.session_id)) return prev;
         return [newAlert, ...prev];
       });
@@ -201,7 +327,6 @@ function App() {
       prev.map(p => {
         if (p.pump_id === pumpId) {
           const nextStatus = p.status === 'active' ? 'stopped' : 'active';
-          // Simulate FVI changes if toggled
           if (nextStatus === 'active') {
             setFviHeatmap(h => h.map(point => ({ ...point, fvi: Math.max(10.0, point.fvi - 12.0) })));
           } else {
@@ -220,7 +345,6 @@ function App() {
       prev.map(d => {
         if (d.drain_id === drainId) {
           const nextStatus = d.status === 'blocked' ? 'cleared' : 'blocked';
-          // Simulate FVI decrease if desilted
           if (nextStatus === 'cleared') {
             setFviHeatmap(h => h.map(point => ({ ...point, fvi: Math.max(15.0, point.fvi - 8.0) })));
           } else {
@@ -340,6 +464,7 @@ function App() {
                         )}
                         <p><strong>Status:</strong> {selectedPin.status.toUpperCase()}</p>
                         <p><strong>Predicted Depth:</strong> {selectedPin.detected_depth ? `${selectedPin.detected_depth} cm` : 'Evaluating...'}</p>
+                        <p><strong>Location:</strong> {getFriendlyLocationName(selectedPin.lat, selectedPin.lng)}</p>
                         <p className="popup-meta">Coords: {selectedPin.lat.toFixed(5)}, {selectedPin.lng.toFixed(5)}</p>
                       </>
                     )}
@@ -349,6 +474,7 @@ function App() {
                         <p><strong>Unit Name:</strong> {selectedPin.name}</p>
                         <p><strong>Flow Capacity:</strong> {selectedPin.flow_rate_lps} L/sec</p>
                         <p><strong>Status:</strong> {selectedPin.status.toUpperCase()}</p>
+                        <p><strong>Location:</strong> {getFriendlyLocationName(selectedPin.lat, selectedPin.lng)}</p>
                         <button
                           className="popup-btn"
                           onClick={() => togglePumpStatus(selectedPin.pump_id)}
@@ -362,6 +488,7 @@ function App() {
                         <div className="popup-title">Stormwater Drain Pipe</div>
                         <p><strong>Drain Name:</strong> {selectedPin.name}</p>
                         <p><strong>Status:</strong> {selectedPin.status === 'blocked' ? '🚫 BLOCKED (Heavy Silting)' : '✓ CLEARED'}</p>
+                        <p><strong>Location:</strong> {getFriendlyLocationName(selectedPin.lat, selectedPin.lng)}</p>
                         <button
                           className="popup-btn"
                           onClick={() => toggleDrainStatus(selectedPin.drain_id)}
@@ -491,7 +618,7 @@ function App() {
                           <img src={`${API_BASE}${sos.photo_url}`} className="alert-image-thumb" alt="Distress flood preview" />
                         )}
                         <div className="alert-details">
-                          <span className="alert-coords">Location: {sos.lat.toFixed(5)}, {sos.lng.toFixed(5)}</span>
+                          <span className="alert-coords">Location: {getFriendlyLocationName(sos.lat, sos.lng)}</span>
                           <span>Water Level: {sos.detected_depth ? `${sos.detected_depth} cm` : 'Awaiting Gemini analysis...'}</span>
                           <span className="alert-meta">Log Time: {new Date(sos.timestamp).toLocaleTimeString()}</span>
                         </div>
@@ -509,7 +636,7 @@ function App() {
                   {chatMessages.map(m => (
                     <div key={m.id} className={`chat-message-wrapper ${m.role}`}>
                       <div className="chat-message-bubble">
-                        {m.content}
+                        {parseMarkdown(m.content)}
                         {m.content.includes("###") && (
                           <div>
                             <button
