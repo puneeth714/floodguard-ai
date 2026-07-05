@@ -106,7 +106,7 @@ class Orchestrator:
             if event.is_final_response():
                 if event.content and event.content.parts:
                     final_text = event.content.parts[0].text
-                break
+
                 
         # 5. Fetch completed session state to return to API layer
         updated_session = await self.session_service.get_session(
