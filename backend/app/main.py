@@ -1,34 +1,30 @@
 import os
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from google.adk.cli.fast_api import get_fast_api_app
 
 from app.api.resident import router as resident_router
 from app.api.official import router as official_router
 
-app = FastAPI(
-    title="FloodGuard AI API Gateway",
-    description="Decision Intelligence Platform for Urban Monsoon Flood Resilience",
-    version="1.0.0"
+# Resolve absolute paths to built frontend static files and agents directory
+MONOREPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+agents_directory = os.path.join(MONOREPO_ROOT, "backend", "app", "agents")
+
+# Initialize FastAPI app using ADK's native factory with Web UI enabled!
+app = get_fast_api_app(
+    agents_dir=agents_directory,
+    web=True,
+    allow_origins=["*"]
 )
 
-# Configure CORS for both Resident React App and Official React Dashboard
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Restrict to specific origins in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-from fastapi.responses import FileResponse
+# Surgically remove ADK's default redirect route at "/" so we can serve our Resident frontend there!
+app.router.routes = [r for r in app.router.routes if r.path != "/"]
 
 # Register endpoints routers
 app.include_router(resident_router)
 app.include_router(official_router)
 
-# Resolve absolute paths to built frontend static files
-MONOREPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RESIDENT_DIST = os.path.join(MONOREPO_ROOT, "frontend-resident", "dist")
 OFFICIAL_DIST = os.path.join(MONOREPO_ROOT, "frontend-official", "dist")
 
@@ -69,40 +65,3 @@ def serve_resident():
         "service": "FloodGuard AI Backend API Services (Resident build not found)",
         "version": "1.0.0"
     }
-
-import httpx
-from fastapi import Request
-from fastapi.responses import Response, HTMLResponse
-
-@app.api_route("/adk/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
-async def proxy_adk_web(request: Request, path: str):
-    """
-    Proxies requests from /adk/... directly to the local adk web server running on port 8001.
-    """
-    async with httpx.AsyncClient() as client:
-        url = f"http://127.0.0.1:8001{request.url.path}"
-        
-        params = dict(request.query_params)
-        headers = dict(request.headers)
-        headers.pop("host", None)
-        
-        body = await request.body()
-        
-        try:
-            resp = await client.request(
-                method=request.method,
-                url=url,
-                params=params,
-                headers=headers,
-                content=body,
-                timeout=120.0
-            )
-            return Response(
-                content=resp.content,
-                status_code=resp.status_code,
-                headers=dict(resp.headers)
-            )
-        except Exception as e:
-            return HTMLResponse(content=f"<h3>ADK Web Server Offline</h3><p>{e}</p>", status_code=502)
-
-
