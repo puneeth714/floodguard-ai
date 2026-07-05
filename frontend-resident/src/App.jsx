@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:8000'
-  : window.location.protocol + '//' + window.location.hostname + ':8000';
+const API_BASE = '';
 
 // Coordinates to friendly name mapper (for fast local lookups)
 const getFriendlyLocationName = (lat, lng) => {
@@ -352,17 +350,48 @@ function App() {
 
       if (!response.ok) throw new Error('API request failed');
 
-      const data = await response.json();
-
+      const tempId = `temp_${Date.now()}`;
       setMessages(prev => [
         ...prev,
         {
-          id: `assistant_${Date.now()}`,
+          id: tempId,
           role: 'assistant',
-          content: data.final_response,
+          content: '⏳ Preparing ADK agent session...',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Save partial line
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const payload = JSON.parse(line.substring(6));
+              if (payload.type === 'status' || payload.type === 'tool') {
+                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, content: `⚙️ **Progress**: *${payload.content}*` } : m));
+              } else if (payload.type === 'final') {
+                setMessages(prev => prev.map(m => m.id === tempId ? {
+                  ...m,
+                  id: `assistant_${Date.now()}`,
+                  content: payload.content
+                } : m));
+              }
+            } catch (e) {
+              console.warn("Parse stream chunk error:", e);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error(error);
       setMessages(prev => [
