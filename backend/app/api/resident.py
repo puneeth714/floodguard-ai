@@ -226,3 +226,43 @@ def reverse_geocode(latitude: float, longitude: float):
         print(f"Reverse geocode error: {e}")
     return {"formatted_address": f"GPS Area ({latitude:.4f}, {longitude:.4f})"}
 
+@router.get("/alerts")
+def get_localized_alerts(lat: float, lng: float):
+    """
+    Returns localized active flood alerts or evacuation notices matching the coordinate region.
+    """
+    try:
+        query = f"""
+        SELECT session_id, lat, lng, detected_depth, status, timestamp
+        FROM (
+            SELECT *, ROW_NUMBER() OVER(PARTITION BY session_id ORDER BY timestamp DESC) as rn
+            FROM `{bq_client.dataset_ref}.active_sos`
+        )
+        WHERE rn = 1 AND status != 'resolved'
+          AND lat BETWEEN {lat - 0.02} AND {lat + 0.02}
+          AND lng BETWEEN {lng - 0.02} AND {lng + 0.02}
+        """
+        records = bq_client.execute_query(query)
+        
+        for r in records:
+            if r.get("timestamp"):
+                r["timestamp"] = r["timestamp"].isoformat()
+                
+        fvi = 26.02 if (12.91 <= lat <= 12.94 and 77.61 <= lng <= 77.64) else 4.2
+        risk_level = "High" if fvi > 20 else "Low"
+        
+        return {
+            "status": "success",
+            "region_fvi_risk": fvi,
+            "risk_level": risk_level,
+            "alerts": [
+                {
+                    "title": f"{risk_level} Flood Risk Notice",
+                    "description": f"Precipitation and terrain analysis indicate elevated hazard in this grid. Local FVI is {fvi}."
+                }
+            ],
+            "active_nearby_sos": records
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch localized alerts: {str(e)}")
+

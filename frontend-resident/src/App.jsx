@@ -176,7 +176,15 @@ function App() {
 
   // Initialize unique session on mount or profile change
   useEffect(() => {
-    const newSessionId = `session_${profile}_${Math.random().toString(36).substr(2, 6)}`;
+    let newSessionId = `session_${profile}_${Math.random().toString(36).substr(2, 6)}`;
+    if (profile === 'anonymous') {
+      let anonId = localStorage.getItem('anonymous_uuid');
+      if (!anonId) {
+        anonId = 'anon_' + Math.random().toString(36).substr(2, 8);
+        localStorage.setItem('anonymous_uuid', anonId);
+      }
+      newSessionId = `session_anonymous_${anonId}`;
+    }
     setSessionId(newSessionId);
     setDestination('');
 
