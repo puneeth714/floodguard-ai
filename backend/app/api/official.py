@@ -82,11 +82,18 @@ async def get_dashboard_summary():
             {"pump_id": "PUMP_HSR_2_01", "name": "Sector 2 Flyover Drainage Unit", "lat": 12.9340, "lng": 77.6320, "status": "active", "flow_rate_lps": 150.0}
         ]
 
+        # 5. Compile live weather radar / cloud formations data (for map visualization)
+        weather_radar = [
+            {"cloud_id": "CLOUD_HSR_B", "name": "HSR Basin Storm Cell (Heavy Rain)", "lat": 12.9279, "lng": 77.6271, "radius_m": 950.0, "intensity": "heavy", "precipitation_mm_hr": 45.0},
+            {"cloud_id": "CLOUD_SB_D", "name": "Silk Board Cloud Deck (Moderate Rain)", "lat": 12.9180, "lng": 77.6230, "radius_m": 1300.0, "intensity": "moderate", "precipitation_mm_hr": 15.0}
+        ]
+
         return {
             "active_sos": sos_records,
             "drains": drains,
             "pumps": pumps,
-            "fvi_heatmap": fvi_grids
+            "fvi_heatmap": fvi_grids,
+            "weather_radar": weather_radar
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to compile dashboard summary: {str(e)}")
