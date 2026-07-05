@@ -267,6 +267,9 @@ function App() {
       const newAlert = JSON.parse(e.data);
       console.log("New distress signal streamed via SSE:", newAlert);
       setActiveSos(prev => {
+        if (newAlert.status === 'resolved') {
+          return prev.filter(a => a.session_id !== newAlert.session_id);
+        }
         if (prev.some(a => a.session_id === newAlert.session_id)) return prev;
         return [newAlert, ...prev];
       });
@@ -274,10 +277,26 @@ function App() {
 
     eventSource.addEventListener('update_sos', (e) => {
       const updatedAlert = JSON.parse(e.data);
-      console.log("Vision analysis update streamed via SSE:", updatedAlert);
-      setActiveSos(prev =>
-        prev.map(a => a.session_id === updatedAlert.session_id ? { ...a, ...updatedAlert } : a)
-      );
+      console.log("Vision/Status analysis update streamed via SSE:", updatedAlert);
+      
+      setActiveSos(prev => {
+        if (updatedAlert.status === 'resolved') {
+          return prev.filter(a => a.session_id !== updatedAlert.session_id);
+        }
+        if (prev.some(a => a.session_id === updatedAlert.session_id)) {
+          return prev.map(a => a.session_id === updatedAlert.session_id ? { ...a, ...updatedAlert } : a);
+        }
+        return [updatedAlert, ...prev];
+      });
+
+      // Update selected map pin status if open
+      setSelectedPin(prev => {
+        if (prev && prev.session_id === updatedAlert.session_id) {
+          if (updatedAlert.status === 'resolved') return null;
+          return { ...prev, ...updatedAlert };
+        }
+        return prev;
+      });
     });
 
     return () => {
@@ -318,6 +337,42 @@ function App() {
       ]);
     } finally {
       setIsChatLoading(false);
+    }
+  };
+
+  // Update SOS distress status in BigQuery append-only log via backend
+  const updateSosStatusInBackend = async (sessionId, nextStatus) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/official/update-sos-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          status: nextStatus
+        })
+      });
+
+      if (response.ok) {
+        // Update local state immediately
+        setActiveSos(prev => {
+          if (nextStatus === 'resolved') {
+            return prev.filter(s => s.session_id !== sessionId);
+          }
+          return prev.map(s => s.session_id === sessionId ? { ...s, status: nextStatus } : s);
+        });
+
+        setSelectedPin(prev => {
+          if (prev && prev.session_id === sessionId) {
+            if (nextStatus === 'resolved') return null;
+            return { ...prev, status: nextStatus };
+          }
+          return prev;
+        });
+      } else {
+        console.error("Failed to update status on server");
+      }
+    } catch (err) {
+      console.error("Error updating SOS status:", err);
     }
   };
 
@@ -385,7 +440,7 @@ function App() {
         </div>
         <div className="header-metrics">
           <div className="metric-item">
-            <span className="metric-value red">{activeSos.filter(s => s.status !== 'rescued').length}</span>
+            <span className="metric-value red">{activeSos.filter(s => s.status !== 'resolved').length}</span>
             <span className="metric-label">Active SOS Signals</span>
           </div>
           <div className="metric-item">
@@ -455,17 +510,32 @@ function App() {
                   position={{ lat: selectedPin.lat, lng: selectedPin.lng }}
                   onCloseClick={() => setSelectedPin(null)}
                 >
-                  <div className="map-popup-window">
+                  <div className="map-popup-window" style={{ color: '#000' }}>
                     {selectedPin.type === 'sos' && (
                       <>
-                        <div className="popup-title">Stranded Resident Alert</div>
+                        <div className="popup-title" style={{ fontWeight: '700', borderBottom: '1px solid #ddd', paddingBottom: '4px', marginBottom: '6px' }}>Stranded Resident Alert</div>
                         {selectedPin.photo_url && (
-                          <img src={`${API_BASE}${selectedPin.photo_url}`} className="popup-img" alt="SOS flood condition" />
+                          <img src={`${API_BASE}${selectedPin.photo_url}`} className="popup-img" alt="SOS flood condition" style={{ width: '100%', maxHeight: '100px', borderRadius: '4px', objectFit: 'cover' }} />
                         )}
-                        <p><strong>Status:</strong> {selectedPin.status.toUpperCase()}</p>
-                        <p><strong>Predicted Depth:</strong> {selectedPin.detected_depth ? `${selectedPin.detected_depth} cm` : 'Evaluating...'}</p>
-                        <p><strong>Location:</strong> {getFriendlyLocationName(selectedPin.lat, selectedPin.lng)}</p>
-                        <p className="popup-meta">Coords: {selectedPin.lat.toFixed(5)}, {selectedPin.lng.toFixed(5)}</p>
+                        <p style={{ margin: '4px 0' }}><strong>Status:</strong> <span style={{ color: 'red', fontWeight: 'bold' }}>{selectedPin.status.toUpperCase()}</span></p>
+                        <p style={{ margin: '4px 0' }}><strong>Water Level:</strong> {selectedPin.detected_depth ? `${selectedPin.detected_depth} cm` : 'Evaluating...'}</p>
+                        <p style={{ margin: '4px 0' }}><strong>Stranded Count:</strong> {selectedPin.stranded_people_count || 1} people</p>
+                        <p style={{ margin: '4px 0' }}><strong>Special Needs:</strong> <span style={{ color: 'orange', fontWeight: 'bold' }}>{selectedPin.special_needs || 'None'}</span></p>
+                        <p style={{ margin: '4px 0' }}><strong>Location:</strong> {getFriendlyLocationName(selectedPin.lat, selectedPin.lng)}</p>
+                        
+                        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', color: '#555', fontWeight: 'bold' }}>Update Rescue Status:</label>
+                          <select
+                            value={selectedPin.status}
+                            onChange={(e) => updateSosStatusInBackend(selectedPin.session_id, e.target.value)}
+                            style={{ background: '#1e293b', color: '#fff', border: '1px solid #475569', fontSize: '12px', padding: '4px', borderRadius: '4px', width: '100%' }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="dispatching">Dispatching</option>
+                            <option value="in-progress">In-Progress</option>
+                            <option value="resolved">Resolved / Rescued</option>
+                          </select>
+                        </div>
                       </>
                     )}
                     {selectedPin.type === 'pump' && (
@@ -604,24 +674,43 @@ function App() {
                     <div
                       key={sos.session_id}
                       className={`alert-card ${sos.status}`}
-                      onClick={() => {
+                    >
+                      <div className="alert-card-header" onClick={() => {
                         setSelectedPin({ type: 'sos', ...sos });
                         centerOnMarker(sos.lat, sos.lng);
-                      }}
-                    >
-                      <div className="alert-card-header">
+                      }}>
                         <span className="alert-title">Distress Session: {sos.session_id}</span>
-                        <span className={`alert-badge ${sos.status}`}>{sos.status}</span>
+                        <span className={`alert-badge ${sos.status}`}>{sos.status.toUpperCase()}</span>
                       </div>
+                      
                       <div className="alert-body">
                         {sos.photo_url && (
-                          <img src={`${API_BASE}${sos.photo_url}`} className="alert-image-thumb" alt="Distress flood preview" />
+                          <img src={`${API_BASE}${sos.photo_url}`} className="alert-image-thumb" alt="Distress flood preview" onClick={() => {
+                            setSelectedPin({ type: 'sos', ...sos });
+                            centerOnMarker(sos.lat, sos.lng);
+                          }} />
                         )}
                         <div className="alert-details">
-                          <span className="alert-coords">Location: {getFriendlyLocationName(sos.lat, sos.lng)}</span>
-                          <span>Water Level: {sos.detected_depth ? `${sos.detected_depth} cm` : 'Awaiting Gemini analysis...'}</span>
+                          <span className="alert-coords" style={{ fontWeight: '600', color: 'var(--accent-cyan)' }}>{getFriendlyLocationName(sos.lat, sos.lng)}</span>
+                          <span style={{ fontSize: '12px' }}>Stranded: <strong style={{ color: '#fff' }}>{sos.stranded_people_count || 1}</strong> | Needs: <strong style={{ color: 'orange' }}>{sos.special_needs || 'None'}</strong></span>
+                          <span>Water Level: {sos.detected_depth ? `${sos.detected_depth} cm` : 'Evaluating...'}</span>
                           <span className="alert-meta">Log Time: {new Date(sos.timestamp).toLocaleTimeString()}</span>
                         </div>
+                      </div>
+
+                      {/* Dropdown status update for the Card */}
+                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lifecycle Status:</span>
+                        <select
+                          value={sos.status}
+                          onChange={(e) => updateSosStatusInBackend(sos.session_id, e.target.value)}
+                          style={{ background: '#1e293b', color: '#fff', border: '1px solid #475569', fontSize: '11px', padding: '2px 4px', borderRadius: '4px' }}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="dispatching">Dispatching</option>
+                          <option value="in-progress">In-Progress</option>
+                          <option value="resolved">Resolved / Rescued</option>
+                        </select>
                       </div>
                     </div>
                   ))
@@ -666,7 +755,7 @@ function App() {
                     className="chat-text-input"
                     placeholder="Ask what-if queries or generate guidelines briefs..."
                     value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
+                    onChange={(e) => setChatInput(e.target.value)} // Bind input
                     onKeyPress={(e) => e.key === 'Enter' && handleSendChat()}
                   />
                   <button className="chat-send-btn" onClick={handleSendChat}>Query</button>

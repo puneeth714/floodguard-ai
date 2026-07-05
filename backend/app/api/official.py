@@ -37,6 +37,94 @@ async def official_chat(payload: OfficialChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Orchestrator error: {str(e)}")
 
+from datetime import datetime
+
+class UpdateSosStatusRequest(BaseModel):
+    session_id: str
+    status: str
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    photo_url: Optional[str] = None
+    user_id: Optional[str] = None
+    detected_depth: Optional[float] = None
+
+@router.post("/update-sos-status")
+async def update_sos_status(payload: UpdateSosStatusRequest):
+    """
+    Inserts an updated status row for the given session_id in the active_sos table.
+    This append-only architecture bypasses BigQuery's streaming buffer update lock.
+    """
+    try:
+        bq_client = BigQueryClientWrapper()
+        
+        # 1. Fetch latest row to copy coordinates/depth/url/user_id if not supplied
+        query = f"""
+        SELECT session_id, user_id, lat, lng, detected_depth, photo_url
+        FROM (
+            SELECT *, ROW_NUMBER() OVER(PARTITION BY session_id ORDER BY timestamp DESC) as rn
+            FROM `{bq_client.dataset_ref}.active_sos`
+        )
+        WHERE rn = 1 AND session_id = '{payload.session_id}'
+        """
+        existing = bq_client.execute_query(query)
+        if not existing:
+            raise HTTPException(status_code=404, detail="SOS session not found")
+            
+        prev_row = existing[0]
+        lat = payload.lat if payload.lat is not None else prev_row["lat"]
+        lng = payload.lng if payload.lng is not None else prev_row["lng"]
+        photo_url = payload.photo_url if payload.photo_url is not None else prev_row["photo_url"]
+        user_id = payload.user_id if payload.user_id is not None else prev_row["user_id"]
+        detected_depth = payload.detected_depth if payload.detected_depth is not None else prev_row["detected_depth"]
+        
+        # 2. Insert new event row
+        timestamp_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+        new_row = {
+            "session_id": payload.session_id,
+            "user_id": user_id,
+            "lat": lat,
+            "lng": lng,
+            "detected_depth": detected_depth,
+            "photo_url": photo_url,
+            "status": payload.status,
+            "timestamp": timestamp_str
+        }
+        bq_client.insert_rows("active_sos", [new_row])
+        
+        # Decode stranded stats inside user_id
+        people_count = 1
+        needs = "None"
+        if ":" in user_id:
+            parts = user_id.split(":")
+            for p in parts:
+                if p.startswith("people_count="):
+                    try:
+                        people_count = int(p.split("=")[1])
+                    except:
+                        pass
+                elif p.startswith("needs="):
+                    needs = p.split("=")[1]
+
+        # 3. Broadcast update to SSE feed
+        broadcast_payload = {
+            "session_id": payload.session_id,
+            "lat": lat,
+            "lng": lng,
+            "photo_url": photo_url,
+            "status": payload.status,
+            "detected_depth": detected_depth,
+            "stranded_people_count": people_count,
+            "special_needs": needs,
+            "timestamp": timestamp_str
+        }
+        await sse_manager.broadcast({"event": "update_sos", "data": broadcast_payload})
+        
+        return {"status": "success", "message": f"SOS status updated to {payload.status}"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update SOS status: {str(e)}")
+
 @router.get("/dashboard-summary")
 async def get_dashboard_summary():
     """
@@ -47,19 +135,39 @@ async def get_dashboard_summary():
     - Flood Vulnerability Index heatmap coords (vulnerability_grids)
     """
     try:
-        # 1. Fetch active SOS records
+        # 1. Fetch active SOS records (latest state per session_id, filter out resolved)
         sos_query = f"""
-        SELECT session_id, lat, lng, detected_depth, photo_url, status, timestamp
-        FROM `{bq_client.dataset_ref}.active_sos`
+        SELECT session_id, user_id, lat, lng, detected_depth, photo_url, status, timestamp
+        FROM (
+            SELECT *, ROW_NUMBER() OVER(PARTITION BY session_id ORDER BY timestamp DESC) as rn
+            FROM `{bq_client.dataset_ref}.active_sos`
+        )
+        WHERE rn = 1 AND status != 'resolved'
         ORDER BY timestamp DESC
         """
         sos_records = bq_client.execute_query(sos_query)
         
-        # Format timestamps to ISO strings
+        # Format timestamps to ISO strings and decode custom user_id format
         for s in sos_records:
             if s.get("timestamp"):
                 s["timestamp"] = s["timestamp"].isoformat()
-
+            
+            user_id_str = s.get("user_id", "resident")
+            people_count = 1
+            needs = "None"
+            if ":" in user_id_str:
+                parts = user_id_str.split(":")
+                for p in parts:
+                    if p.startswith("people_count="):
+                        try:
+                            people_count = int(p.split("=")[1])
+                        except:
+                            pass
+                    elif p.startswith("needs="):
+                        needs = p.split("=")[1]
+            s["stranded_people_count"] = people_count
+            s["special_needs"] = needs
+            
         # 2. Fetch drainage network status
         drain_query = f"""
         SELECT drain_id, name, lat, lng, status

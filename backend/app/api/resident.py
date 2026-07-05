@@ -63,6 +63,7 @@ async def analyze_sos_image_background(
     lat: float,
     lng: float,
     photo_url: str,
+    user_id: str,
     timestamp_str: str
 ):
     """
@@ -82,7 +83,7 @@ async def analyze_sos_image_background(
         # 1. Insert completed row into BigQuery (avoids streaming buffer UPDATE constraints!)
         row = {
             "session_id": session_id,
-            "user_id": "resident",
+            "user_id": user_id,
             "lat": lat,
             "lng": lng,
             "detected_depth": depth,
@@ -92,6 +93,20 @@ async def analyze_sos_image_background(
         }
         bq_client.insert_rows("active_sos", [row])
         
+        # Decode custom user_id format
+        people_count = 1
+        needs = "None"
+        if ":" in user_id:
+            parts = user_id.split(":")
+            for p in parts:
+                if p.startswith("people_count="):
+                    try:
+                        people_count = int(p.split("=")[1])
+                    except:
+                        pass
+                elif p.startswith("needs="):
+                    needs = p.split("=")[1]
+
         # 2. Broadcast updated state through SSE feed
         updated_data = {
             "session_id": session_id,
@@ -101,6 +116,8 @@ async def analyze_sos_image_background(
             "status": "active",
             "detected_depth": depth,
             "severity": severity,
+            "stranded_people_count": people_count,
+            "special_needs": needs,
             "timestamp": timestamp_str
         }
         await sse_manager.broadcast({"event": "update_sos", "data": updated_data})
@@ -110,7 +127,7 @@ async def analyze_sos_image_background(
         # Insert fallback record in BigQuery
         row = {
             "session_id": session_id,
-            "user_id": "resident",
+            "user_id": user_id,
             "lat": lat,
             "lng": lng,
             "detected_depth": 35.0,  # Fallback depth
@@ -129,6 +146,8 @@ async def upload_sos(
     file: UploadFile = File(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
+    stranded_count: int = Form(1),
+    medical_needs: Optional[str] = Form(None),
     user_query: Optional[str] = Form(None)
 ):
     """
@@ -151,6 +170,9 @@ async def upload_sos(
     photo_url = f"/static/uploads/{filename}"
     timestamp_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
     
+    # Encode custom stranded info inside user_id
+    user_id_encoded = f"resident:people_count={stranded_count}:needs={medical_needs or 'None'}"
+    
     # 2. Broadcast initial SOS alert to all listening map portals (before BigQuery insert finishes)
     sos_data = {
         "session_id": session_id,
@@ -160,6 +182,8 @@ async def upload_sos(
         "status": "pending",
         "detected_depth": None,
         "severity": "pending",
+        "stranded_people_count": stranded_count,
+        "special_needs": medical_needs or "None",
         "timestamp": timestamp_str
     }
     await sse_manager.broadcast({"event": "new_sos", "data": sos_data})
@@ -172,6 +196,7 @@ async def upload_sos(
         lat=latitude,
         lng=longitude,
         photo_url=photo_url,
+        user_id=user_id_encoded,
         timestamp_str=timestamp_str
     )
     

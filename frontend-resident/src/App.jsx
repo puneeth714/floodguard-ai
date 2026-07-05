@@ -149,6 +149,11 @@ function App() {
   const [sosStage, setSosStage] = useState('upload'); // 'upload', 'sending', 'analyzing', 'done', 'error'
   const [sosTelemetry, setSosTelemetry] = useState({ lat: 0, lng: 0 });
   const [sosResult, setSosResult] = useState(null);
+  
+  // Custom distress inputs
+  const [strandedCount, setStrandedCount] = useState(1);
+  const [medicalNeeds, setMedicalNeeds] = useState('');
+  const [activeSosId, setActiveSosId] = useState(null);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -216,6 +221,43 @@ function App() {
       triggerBrowserGeolocation();
     }
   }, [profile]);
+
+  // Subscribe to SSE stream for live bi-directional rescue status updates
+  useEffect(() => {
+    const sse = new EventSource(`${API_BASE}/api/official/live-sos-feed`);
+    
+    sse.addEventListener('update_sos', (event) => {
+      const update = JSON.parse(event.data);
+      const savedId = localStorage.getItem('active_sos_id');
+      
+      if (savedId && update.session_id === savedId) {
+        setMessages(prev => {
+          const bubbleId = `status_update_${update.status}_${update.timestamp}`;
+          // Avoid duplicate appends
+          if (prev.some(m => m.id === bubbleId)) return prev;
+          
+          return [
+            ...prev,
+            {
+              id: bubbleId,
+              role: 'assistant',
+              content: `🚨 **Rescue Lifecycle Update**: Your distress alert status is now **${update.status.toUpperCase()}**.\n\n*   **Stranded Count**: ${update.stranded_people_count} stranded\n*   **Special Needs**: ${update.special_needs}\n*   **Water Level**: ${update.detected_depth} cm\n\nMunicipal Rescue dispatch teams have been updated.`,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ];
+        });
+        
+        if (update.status === 'resolved') {
+          localStorage.removeItem('active_sos_id');
+          setActiveSosId(null);
+        }
+      }
+    });
+
+    return () => {
+      sse.close();
+    };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -346,6 +388,8 @@ function App() {
     setSosPreview('');
     setSosResult(null);
     setSosStage('upload');
+    setStrandedCount(1);
+    setMedicalNeeds('');
     
     // Lock current telemetry coordinates for upload
     setSosTelemetry({ lat: gpsCoords.lat, lng: gpsCoords.lng });
@@ -360,6 +404,8 @@ function App() {
     formData.append('file', sosPhoto);
     formData.append('latitude', sosTelemetry.lat);
     formData.append('longitude', sosTelemetry.lng);
+    formData.append('stranded_count', strandedCount);
+    formData.append('medical_needs', medicalNeeds || 'None');
     formData.append('user_query', 'Active resident flood SOS distress upload.');
 
     try {
@@ -370,6 +416,10 @@ function App() {
 
       if (!response.ok) throw new Error('SOS upload failed');
       const data = await response.json();
+      
+      // Store session details to receive bi-directional SSE updates
+      setActiveSosId(data.sos_id);
+      localStorage.setItem('active_sos_id', data.sos_id);
 
       // Switch to analyzing stage
       setSosStage('analyzing');
@@ -553,6 +603,28 @@ function App() {
                     <p className="upload-subtext">Used by Gemini AI to estimate water depth</p>
                   </div>
                 )}
+
+                {/* Form fields for stranded count and special assistance */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', margin: '10px 0', textAlign: 'left' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Number of Stranded People:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={strandedCount}
+                    onChange={(e) => setStrandedCount(parseInt(e.target.value) || 1)}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '8px', borderRadius: '4px', color: '#fff', fontSize: '13px' }}
+                  />
+                  
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Medical / Special Assistance Needs:</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Elderly parents, Diabetic meds needed"
+                    value={medicalNeeds}
+                    onChange={(e) => setMedicalNeeds(e.target.value)}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', padding: '8px', borderRadius: '4px', color: '#fff', fontSize: '13px' }}
+                  />
+                </div>
+
                 <button
                   className="sos-action-btn"
                   disabled={!sosPhoto}

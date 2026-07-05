@@ -11,6 +11,7 @@ from app.tools.places import geocode_place
 from app.tools.simulation import run_what_if_simulation
 from app.tools.guidelines import search_disaster_guidelines
 from app.tools.fvi import calculate_flood_vulnerability_index
+from app.tools.operational import get_operational_status
 
 # Import prompts
 from app.agents.prompts import (
@@ -86,7 +87,8 @@ geospatial_agent = LlmAgent(
         get_weather_telemetry,
         get_elevation_profile,
         calculate_safe_route,
-        calculate_flood_vulnerability_index
+        calculate_flood_vulnerability_index,
+        get_operational_status
     ]
 )
 
@@ -96,7 +98,7 @@ policy_agent = LlmAgent(
     name="PolicyAgent",
     description="Queries disaster response guidelines (RAG) and runs what-if hydrological simulations.",
     instruction=POLICY_AGENT_INSTRUCTION,
-    tools=[get_session_context, run_what_if_simulation, search_disaster_guidelines]
+    tools=[get_session_context, run_what_if_simulation, search_disaster_guidelines, get_operational_status]
 )
 
 # Orchestrator Agent (LlmAgent)
