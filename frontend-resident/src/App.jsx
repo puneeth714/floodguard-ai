@@ -334,7 +334,7 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/resident/chat`, {
+      const response = await fetch(`${API_BASE}/api/resident/chat?stream=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
