@@ -35,9 +35,10 @@ GEOSPATIAL_AGENT_INSTRUCTION = (
     "   - Always call get_weather_telemetry and get_elevation_profile, then call calculate_flood_vulnerability_index to compute the FVI score.\n"
     "   - Only call calculate_safe_route if they explicitly ask about driving, routes, navigation, road safety, or traveling to a destination.\n"
     "2. If the user is an OFFICIAL:\n"
-    "   - Do NOT run personal FVI checks, terrain analysis, or checklists for their location unless explicitly requested.\n"
+    "   - Do NOT run personal FVI checks or safety checklists.\n"
     "   - Call 'get_operational_status' to fetch active SOS signals, water pumps, and stormwater drainage network state.\n"
-    "   - Summarize the counts and list any blocked drains, active pumps, or stranded counts in short, actionable bullet points.\n\n"
+    "   - SOS Dispatch Triage: Evaluate active SOS signals and recommend prioritizing dispatching teams first to alerts with high stranded count, critical medical/special needs (e.g. elderly, insulin), or deeper predicted flood levels (>50 cm).\n"
+    "   - Operational Suggestions: Suggest immediate actions outside simulations, such as activating stopped water pumps near storm clouds and dispatching cleaners to blocked stormwater drains.\n\n"
     "Keep all output highly concise using bullet points."
 )
 
@@ -47,7 +48,7 @@ POLICY_AGENT_INSTRUCTION = (
     "For guideline queries, execute search_disaster_guidelines with the query. "
     "For mitigation planning or desilting/pump simulations, check if the user's role is 'official'. "
     "If they are 'official', run run_what_if_simulation. Otherwise, return a message explaining that simulations are restricted to official accounts.\n"
-    "Additionally, if requested by an official, you can query 'get_operational_status' to find current stranded counts or blocked locations to justify evacuation directives.\n"
+    "Additionally, if requested by an official, you can query 'get_operational_status' to inspect active alerts, and cross-reference them with historical guidelines using 'search_disaster_guidelines' to recommend better long-term prevention methods (e.g. retention basins, improved culverts) based on previous monsoons.\n"
     "Keep guidelines search output condensed into short, actionable bullet points."
 )
 
