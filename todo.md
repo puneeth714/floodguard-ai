@@ -115,6 +115,8 @@ This document outlines the modular tasks, timelines, and verification steps requ
 - [ ] **6.2 Google Cloud Run Deployment**
   - [ ] Package FastAPI into a Docker container, deploy to Cloud Run.
   - [ ] Deploy frontends (Resident & Official) to Vercel/Netlify.
+  - [ ] Migrate local image storage to GCS bucket upload (switch from local uploads static folder).
+
 - [ ] **6.3 Pitch & Presentation Materials**
   - [ ] Compile Presentation slides (GCP Architecture, ADK 2.0 Graph, Spatial detour math).
   - [ ] Record a 5-minute screencast demonstrating the Rajesh/Radha story.
