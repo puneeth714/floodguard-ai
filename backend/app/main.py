@@ -70,3 +70,39 @@ def serve_resident():
         "version": "1.0.0"
     }
 
+import httpx
+from fastapi import Request
+from fastapi.responses import Response, HTMLResponse
+
+@app.api_route("/adk/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+async def proxy_adk_web(request: Request, path: str):
+    """
+    Proxies requests from /adk/... directly to the local adk web server running on port 8001.
+    """
+    async with httpx.AsyncClient() as client:
+        url = f"http://127.0.0.1:8001{request.url.path}"
+        
+        params = dict(request.query_params)
+        headers = dict(request.headers)
+        headers.pop("host", None)
+        
+        body = await request.body()
+        
+        try:
+            resp = await client.request(
+                method=request.method,
+                url=url,
+                params=params,
+                headers=headers,
+                content=body,
+                timeout=120.0
+            )
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                headers=dict(resp.headers)
+            )
+        except Exception as e:
+            return HTMLResponse(content=f"<h3>ADK Web Server Offline</h3><p>{e}</p>", status_code=502)
+
+

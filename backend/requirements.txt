@@ -16,4 +16,6 @@ pypdf>=3.0.0
 Pillow>=10.0.0
 google-adk
 python-multipart
+httpx>=0.25.0
+
 
